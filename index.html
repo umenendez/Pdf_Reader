@@ -9,7 +9,9 @@
 <link rel="icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#11151b;--pn:#1a212a;--ln:#2a3340;--tx:#e9edf2;--mu:#8b97a6;--ac:#7aa2ff;--r:6px}
+:root{--bg:#11151b;--pn:#1a212a;--ln:#2a3340;--tx:#e9edf2;--mu:#8b97a6;--ac:#7aa2ff;--on:#0b1020;--r:6px}
+html[data-t=black]{--bg:#000;--pn:#0d0f12;--ln:#23282f}
+html[data-t=light]{--bg:#f3f4f6;--pn:#fff;--ln:#d8dce2;--tx:#1b2028;--mu:#5f6b7a}
 *{box-sizing:border-box;margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.4 "Bricolage Grotesque",system-ui,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 button,select,input{font:inherit;color:inherit}button{cursor:pointer;background:none;border:0}
@@ -21,16 +23,16 @@ h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-right:auto}
 #ss{position:absolute;bottom:-18px;right:16px;font-size:11px;color:var(--mu)}
 #filters{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none}
 .chip{white-space:nowrap;border:1px solid var(--ln);border-radius:99px;padding:5px 12px;color:var(--mu);font-size:13px}
-.chip.on{background:var(--ac);border-color:var(--ac);color:#0b1020;font-weight:600}
+.chip.on{background:var(--ac);border-color:var(--ac);color:var(--on);font-weight:600}
 .sep{width:1px;height:18px;background:var(--ln);flex:none}
 select{background:var(--pn);border:1px solid var(--ln);border-radius:var(--r);padding:5px 8px;font-size:13px}
 main{padding:12px 16px 40px}
 h3{font-size:13px;color:var(--mu);font-weight:600;margin:14px 0 10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:18px 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,130px),1fr));gap:18px 14px}
 .row2{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}.row2 .card{width:120px;flex:none}
 .card{text-align:left;display:block}
 .cv{position:relative;aspect-ratio:2/3;border-radius:var(--r);overflow:hidden;background:hsl(var(--h) 30% 24%);box-shadow:0 2px 0 rgba(0,0,0,.35)}
-.cv span{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;font-weight:800;font-size:15px;line-height:1.1}
+.cv span{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;color:#fff;font-weight:800;font-size:15px;line-height:1.1}
 .cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .fv{position:absolute;top:6px;left:6px;font-style:normal;color:#ff7a90;text-shadow:0 1px 3px #000}
 .cnt{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);border-radius:99px;font-size:11px;padding:1px 8px}
@@ -38,7 +40,7 @@ h3{font-size:13px;color:var(--mu);font-weight:600;margin:14px 0 10px}
 .sub{font-size:12px;color:var(--mu)}
 .pg{height:3px;background:var(--ln);margin-top:5px}.pg i{display:block;height:100%;background:var(--ac)}
 .empty{max-width:440px;margin:60px auto;color:var(--mu)}.empty h2{color:var(--tx);margin-bottom:8px}
-.btn{background:var(--ac);color:#0b1020;font-weight:700;border-radius:var(--r);padding:9px 16px;margin-top:14px}
+.btn{background:var(--ac);color:var(--on);font-weight:700;border-radius:var(--r);padding:9px 16px;margin-top:14px}
 #sheet{position:fixed;inset:0;z-index:20;background:rgba(5,7,10,.7);display:flex;align-items:flex-end;justify-content:center}
 .sh{background:var(--pn);width:min(640px,100%);max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px;position:relative}
 .sh .x{position:absolute;top:8px;right:12px;font-size:26px;color:var(--mu)}
@@ -49,16 +51,21 @@ li{display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:cent
 li small{color:var(--mu)}li .pg{grid-column:1/-1;margin:0}
 li button{color:var(--mu);font-size:12px;border:1px solid var(--ln);border-radius:var(--r);padding:3px 8px}
 li button.on{color:var(--ac);border-color:var(--ac)}
-dialog{margin:auto;background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:12px;padding:20px;width:min(460px,92vw)}
+dialog{margin:auto;background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:12px;padding:20px;width:min(460px,92vw);max-height:90vh;overflow:auto}
 dialog::backdrop{background:rgba(5,7,10,.7)}
 dialog label{display:block;margin-top:12px;font-size:13px;color:var(--mu)}
 dialog input{width:100%;background:var(--bg);border:1px solid var(--ln);border-radius:var(--r);padding:8px;margin-top:4px}
 dialog p{font-size:12.5px;color:var(--mu);margin-top:10px}
+dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);padding-bottom:4px}
+.rr{display:flex;gap:6px;margin-top:6px}.rr input{flex:1;margin:0;min-width:0}.rr select{flex:none;max-width:120px}
+.tg{display:flex!important;justify-content:space-between;align-items:center;gap:10px;color:var(--tx)!important;font-size:14px!important}
+.tg input{width:auto;margin:0}.tg input[type=color]{width:44px;height:30px;padding:0}.tg select{max-width:55%}
+.acts{display:flex;gap:8px;align-items:center;margin-top:18px}.acts .btn{margin:0}
 #reader{position:fixed;inset:0;z-index:30;background:var(--sb,#0b0d10);display:flex}
 #reader[hidden],#sheet[hidden]{display:none}
 #stage{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;-webkit-overflow-scrolling:touch}
 #pageBox{display:flex;margin:auto 0}#pageBox canvas{display:block}
-.bar{position:fixed;left:0;right:0;z-index:2;background:rgba(17,21,27,.94);display:flex;align-items:center;gap:10px;padding:8px 14px;transition:transform .2s}
+.bar{position:fixed;left:0;right:0;z-index:2;color:#e9edf2;--ln:#2a3340;background:rgba(17,21,27,.94);display:flex;align-items:center;gap:10px;padding:8px 14px;transition:transform .2s}
 .bar.top{top:0;padding-top:calc(8px + env(safe-area-inset-top))}.bar.bot{bottom:0;flex-direction:column;align-items:stretch;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .bar.top.h{transform:translateY(-110%)}.bar.bot.h{transform:translateY(110%)}
 .bar button{padding:5px 10px;border:1px solid var(--ln);border-radius:var(--r);font-size:13px}
@@ -89,11 +96,30 @@ dialog p{font-size:12.5px;color:var(--mu);margin-top:10px}
     <div class="tools"><button data-r="mode"></button><button data-r="dir"></button><button data-r="fit"></button><button data-r="theme"></button><button data-r="fs" aria-label="Pantalla completa">⛶</button></div></div>
 </div>
 <dialog id="cfgd">
-  <h2>Conectar con Drive</h2>
+  <h2>Ajustes</h2>
+  <h4>Conexión</h4>
   <label>ID de cliente de Google (OAuth)<input id="cid" placeholder="123-abc.apps.googleusercontent.com"></label>
-  <label>Carpeta raíz de Drive (enlace o ID)<input id="rootIn" placeholder="https://drive.google.com/drive/folders/..."></label>
-  <p>Cada subcarpeta es una saga y sus PDFs son los volúmenes. Los PDFs sueltos en la raíz se muestran como obras de un solo volumen.</p>
-  <button class="btn" id="save">Guardar y sincronizar</button>
+  <h4>Rutas de Drive</h4>
+  <div id="roots"></div>
+  <button class="chip" id="addRoot" type="button" style="margin-top:8px">+ Añadir ruta</button>
+  <p>Cada ruta es una carpeta de Drive (enlace o ID). Sus subcarpetas son sagas y sus PDFs, volúmenes. La categoría de la ruta se aplica a todas sus obras y puedes cambiarla obra a obra.</p>
+  <h4>Lectura</h4>
+  <label class="tg">Páginas<select id="s_mode"><option value="auto">Auto</option><option value="single">1 página</option><option value="double">2 páginas</option></select></label>
+  <label class="tg">Ajuste<select id="s_fit"><option value="page">Página entera</option><option value="width">Ancho</option></select></label>
+  <label class="tg">Fondo del lector<select id="s_theme"><option value="0">Noche</option><option value="1">Negro</option><option value="2">Papel</option></select></label>
+  <label class="tg">Manga de derecha a izquierda<input type="checkbox" id="s_rtl"></label>
+  <label class="tg">Portada sola en doble página<input type="checkbox" id="s_cov"></label>
+  <label class="tg">Invertir toques laterales<input type="checkbox" id="s_tap"></label>
+  <label class="tg">Mantener pantalla encendida<input type="checkbox" id="s_wake"></label>
+  <label class="tg">Marcar leído al llegar a la última página<input type="checkbox" id="s_auto"></label>
+  <label class="tg">Al marcar un volumen, marcar también los anteriores<input type="checkbox" id="s_casc"></label>
+  <h4>Apariencia</h4>
+  <label class="tg">Tema<select id="s_app"><option value="dark">Oscuro</option><option value="black">Negro</option><option value="light">Claro</option></select></label>
+  <label class="tg">Color de acento<input type="color" id="s_ac"></label>
+  <label class="tg">Tamaño de portadas<select id="s_cw"><option value="100">Pequeñas</option><option value="130">Medianas</option><option value="170">Grandes</option></select></label>
+  <label class="tg">Orden por defecto<select id="s_sort"><option value="recent">Recientes</option><option value="name">A–Z</option></select></label>
+  <label class="tg">Mostrar «Continuar leyendo»<input type="checkbox" id="s_cont"></label>
+  <div class="acts"><button class="btn" id="save" type="button">Guardar</button><button class="chip" id="cx" type="button">Cancelar</button></div>
 </dialog>
 
 <script>
@@ -101,9 +127,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
-let cfg=LS('cfg')||{clientId:'',root:'',theme:0,mode:'auto',fit:'page'};
-let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:'recent'},R=null,cur=null,timer;
-const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{};
+const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent'};
+let cfg={...DEF,...(LS('cfg')||{})};if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
+let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
+const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
+function markDone(s,vid,on){const i=s.vols.findIndex(v=>v.id==vid),r=cfg.casc?(on?s.vols.slice(0,i+1):s.vols.slice(i)):[s.vols[i]];
+  r.forEach(v=>{const x=vs(v.id);db.vols[v.id]={...x,p:on?(x.p||1):1,n:x.n||0,done:on,t:Date.now()}});persist()}
+function look(){const h=document.documentElement,n=parseInt(cfg.ac.slice(1),16);h.dataset.t=cfg.app;h.style.setProperty('--ac',cfg.ac);h.style.setProperty('--cw',cfg.cw+'px');
+  h.style.setProperty('--on',.299*(n>>16)+.587*(n>>8&255)+.114*(n&255)>150?'#0b1020':'#fff');
+  document.querySelector('meta[name=theme-color]').content={dark:'#11151b',black:'#000',light:'#f3f4f6'}[cfg.app]}
 const status=t=>{$('#ss').textContent=t;if(t)setTimeout(()=>{if($('#ss').textContent==t)$('#ss').textContent=''},3500)};
 
 /* ---------- almacenamiento offline (IndexedDB) ---------- */
@@ -124,12 +156,12 @@ async function g(u,o={},retry=1){const t=await auth();
   if(r.status==401&&retry){token=null;return g(u,o,0)}if(!r.ok)throw new Error('Drive '+r.status);return r}
 async function list(q,extra=''){let out=[],pt='';do{const r=await(await g('files?pageSize=1000&fields=nextPageToken,files(id,name,mimeType,thumbnailLink)&q='+encodeURIComponent(q)+extra+(pt?'&pageToken='+pt:''))).json();out.push(...r.files);pt=r.nextPageToken}while(pt);return out}
 const nat=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}),clean=n=>n.replace(/\.pdf$/i,'');
-async function sync(){try{status('Sincronizando…');
-  const it=await list(`'${cfg.root}' in parents and trashed=false`),res=[];
-  await Promise.all(it.filter(i=>i.mimeType=='application/vnd.google-apps.folder').map(async f=>{
-    const v=(await list(`'${f.id}' in parents and trashed=false and mimeType='application/pdf'`)).sort(nat);
-    if(v.length)res.push({id:f.id,name:f.name,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
-  it.filter(i=>i.mimeType=='application/pdf').forEach(p=>res.push({id:p.id,name:clean(p.name),vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}));
+async function sync(){try{status('Sincronizando…');const res=[],seen=new Set(),add=x=>{if(!seen.has(x.id)){seen.add(x.id);res.push(x)}};
+  for(const r of cfg.roots){const it=await list(`'${r.id}' in parents and trashed=false`);
+    await Promise.all(it.filter(i=>i.mimeType=='application/vnd.google-apps.folder').map(async f=>{
+      const v=(await list(`'${f.id}' in parents and trashed=false and mimeType='application/pdf'`)).sort(nat);
+      if(v.length)add({id:f.id,name:f.name,rt:r.type,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
+    it.filter(i=>i.mimeType=='application/pdf').forEach(p=>add({id:p.id,name:clean(p.name),rt:r.type,vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}))}
   lib=res.sort(nat);SV('lib',lib);await pull();await push();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}}
 const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0))db.sagas[k]=a.sagas[k]};
 async function pull(){const f=(await(await g('files?spaces=appDataFolder&fields=files(id)&q='+encodeURIComponent("name='lector.json'"))).json()).files;
@@ -151,32 +183,44 @@ const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
 const src=s=>sm(s.id).cover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
 const cover=(s,x='')=>`<div class="cv" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`;
 function render(){
-  const ok=cfg.clientId&&cfg.root;$('#filters').hidden=!lib.length;
+  const ok=cfg.clientId&&cfg.roots.length;$('#filters').hidden=!lib.length;
   if(!ok||!lib.length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Conecta tu Drive'}</h2>${ok?'Pulsa ⟳ para leer tu carpeta de Drive.':'Indica tu ID de cliente de Google y la carpeta donde tienes los PDFs. Cada subcarpeta será una saga.'}<br><button class="btn" id="go">${ok?'Sincronizar':'Configurar'}</button></div>`;return}
   const ch=(k,o)=>o.map(([v,l])=>`<button class="chip ${F[k]===v?'on':''}" data-f="${k}" data-v="${v}">${l}</button>`).join('');
   $('#filters').innerHTML=ch('type',[['','Todos'],...TYPES.map(t=>[t,t])])+'<span class="sep"></span>'+ch('st',[['','Todo'],['new','Sin empezar'],['reading','Leyendo'],['done','Terminados']])+
     `<span class="sep"></span><button class="chip ${F.fav?'on':''}" data-f="fav">♥ Favoritos</button><select id="so" aria-label="Ordenar"><option value="recent">Recientes</option><option value="name">A–Z</option></select>`;
   $('#so').value=F.sort;
-  let l=lib.filter(s=>(!F.q||s.name.toLowerCase().includes(F.q))&&(!F.type||sm(s.id).type==F.type)&&(!F.st||stat(s).s==F.st)&&(!F.fav||sm(s.id).fav));
+  let l=lib.filter(s=>(!F.q||s.name.toLowerCase().includes(F.q))&&(!F.type||typeOf(s)==F.type)&&(!F.st||stat(s).s==F.st)&&(!F.fav||sm(s.id).fav));
   if(F.sort=='recent')l.sort((a,b)=>lastT(b)-lastT(a)||nat(a,b));
   let h='';
   const cont=lib.flatMap(s=>s.vols.filter(v=>{const x=vs(v.id);return x.p>1&&!x.done}).map(v=>({s,v,t:vs(v.id).t}))).sort((a,b)=>b.t-a.t).slice(0,8);
-  if(cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
+  if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
   h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
     return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:''))}<div class="nm">${esc(s.name)}</div><div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
   $('#main').innerHTML=h}
 $('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const d=e.target.closest('[data-id]');if(d)openSheet(d.dataset.id);if(e.target.id=='go')ok2()};
-const ok2=()=>cfg.clientId&&cfg.root?sync():$('#cfgd').showModal();
+const ok2=()=>cfg.clientId&&cfg.roots.length?sync():openCfg();
 $('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
 $('#filters').onchange=e=>{F.sort=e.target.value;render()};
 $('#q').oninput=e=>{F.q=e.target.value.toLowerCase();render()};
-$('#sy').onclick=ok2;$('#st').onclick=()=>{$('#cid').value=cfg.clientId;$('#rootIn').value=cfg.root;$('#cfgd').showModal()};
-$('#save').onclick=()=>{cfg.clientId=$('#cid').value.trim();const r=$('#rootIn').value.trim();cfg.root=(r.match(/folders\/([\w-]+)/)||[,r])[1];SV('cfg',cfg);$('#cfgd').close();sync()};
+$('#sy').onclick=ok2;$('#st').onclick=openCfg;
+const rootId=r=>(r.match(/folders\/([\w-]+)/)||r.match(/[?&]id=([\w-]+)/)||[,r])[1];
+const rootRow=(r={id:'',type:''})=>`<div class="rr"><input placeholder="Enlace o ID de carpeta" value="${esc(r.id)}" aria-label="Carpeta de Drive"><select aria-label="Categoría de la ruta"><option value="">Sin categoría</option>${TYPES.map(t=>`<option ${r.type==t?'selected':''}>${t}</option>`).join('')}</select><button class="chip" type="button" data-rm aria-label="Quitar ruta">×</button></div>`;
+const SEL={s_mode:'mode',s_fit:'fit',s_theme:'theme',s_app:'app',s_ac:'ac',s_cw:'cw',s_sort:'sort'},CK={s_rtl:'rtlManga',s_cov:'cover',s_tap:'tap',s_wake:'wake',s_auto:'auto',s_casc:'casc',s_cont:'cont'};
+function openCfg(){$('#cid').value=cfg.clientId;$('#roots').innerHTML=(cfg.roots.length?cfg.roots:[{id:'',type:''}]).map(rootRow).join('');
+  for(const k in SEL)$('#'+k).value=cfg[SEL[k]];for(const k in CK)$('#'+k).checked=!!cfg[CK[k]];$('#cfgd').showModal()}
+$('#roots').onclick=e=>{const b=e.target.closest('[data-rm]');if(b)b.parentNode.remove()};
+$('#addRoot').onclick=()=>$('#roots').insertAdjacentHTML('beforeend',rootRow());
+$('#cx').onclick=()=>$('#cfgd').close();
+$('#save').onclick=()=>{const old=JSON.stringify([cfg.clientId,cfg.roots]);cfg.clientId=$('#cid').value.trim();
+  cfg.roots=[...document.querySelectorAll('#roots .rr')].map(d=>({id:rootId(d.children[0].value.trim()),type:d.children[1].value})).filter(r=>r.id);
+  for(const k in SEL){const v=$('#'+k).value;cfg[SEL[k]]=['theme','cw'].includes(SEL[k])?+v:v}for(const k in CK)cfg[CK[k]]=$('#'+k).checked;
+  F.sort=cfg.sort;SV('cfg',cfg);look();$('#cfgd').close();
+  if(cfg.clientId&&cfg.roots.length&&(JSON.stringify([cfg.clientId,cfg.roots])!=old||!lib.length))sync();else render()};
 
 /* ---------- ficha de saga ---------- */
 function openSheet(id){cur=id;const s=lib.find(x=>x.id==id);if(!s)return;const m=sm(id);
   $('#sheet').innerHTML=`<div class="sh"><button class="x" data-a="close" aria-label="Cerrar">×</button><div class="top">${cover(s)}<div><h2>${esc(s.name)}</h2>
-  <div class="rw">${TYPES.map(t=>`<button class="chip ${m.type==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
+  <div class="rw">${TYPES.map(t=>`<button class="chip ${typeOf(s)==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
   <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
   <ul>${s.vols.map(v=>{const x=vs(v.id);return `<li data-v="${v.id}"><span>${esc(v.name)}</span><small>${x.done?'Leído':x.p>1?`pág. ${x.p}/${x.n}`:''}</small><span><button data-a="done" data-v="${v.id}" class="${x.done?'on':''}">✓</button> <button data-a="dl" data-v="${v.id}" class="${off.has(v.id)?'on':''}">${off.has(v.id)?'Sin conexión ✓':'Descargar'}</button></span><div class="pg"><i style="width:${x.done?100:x.n?Math.round((x.p-1)/x.n*100):0}%"></i></div></li>`}).join('')}</ul></div>`;
   $('#sheet').hidden=false}
@@ -187,7 +231,7 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
     if(a=='uncover')setMeta(id,{cover:''});
     if(a=='cover')return $('#cvIn').click();
-    if(a=='done'){const x=vs(v);db.vols[v]={...x,p:x.p||1,n:x.n||0,done:!x.done,t:Date.now()};persist()}
+    if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
     if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v)}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v)}}catch(er){status('Error: '+er.message)}}
     return openSheet(id)}
   const li=e.target.closest('li[data-v]');if(li){$('#sheet').hidden=true;openReader(li.dataset.v)}};
@@ -196,15 +240,15 @@ $('#cvIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=awa
 
 /* ---------- lector ---------- */
 let wl=null,rid=0;
-const rtl=()=>{const m=sm(R.s.id);return m.rtl??m.type=='Manga'};
+const rtl=()=>{const m=sm(R.s.id);return m.rtl??(cfg.rtlManga&&typeOf(R.s)=='Manga')};
 const isDbl=()=>cfg.mode=='double'||(cfg.mode=='auto'&&$('#stage').clientWidth>$('#stage').clientHeight*1.05);
-const spread=(p,n,d)=>{if(!d||p==1)return[p];const a=p%2?p-1:p;return a+1<=n?[a,a+1]:[a]};
+const spread=(p,n,d)=>{if(!d)return[p];if(cfg.cover&&p==1)return[1];const a=cfg.cover?(p%2?p-1:p):(p%2?p:p-1);return a+1<=n?[a,a+1]:[a]};
 async function openReader(vid){const s=lib.find(x=>x.vols.some(v=>v.id==vid)),v=s.vols.find(v=>v.id==vid);
   R={s,v,pdf:null,p:1};$('#reader').hidden=false;$('#pageBox').replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';
   try{let buf=await tx('readonly',o=>o.get(vid));if(!buf)buf=await(await g('files/'+vid+'?alt=media')).arrayBuffer();
     R.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
     const x=vs(vid);R.p=x.done?1:Math.min(x.p||1,R.pdf.numPages);
-    const sl=$('#sl');sl.max=R.pdf.numPages;try{wl=await navigator.wakeLock.request('screen')}catch{}
+    const sl=$('#sl');sl.max=R.pdf.numPages;if(cfg.wake)try{wl=await navigator.wakeLock.request('screen')}catch{}
     $('#tb').classList.remove('h');$('#bb').classList.remove('h');draw()}
   catch(er){$('#rt').textContent='No se pudo abrir: '+er.message}}
 async function draw(){const my=++rid,pdf=R.pdf,n=pdf.numPages,st=$('#stage');
@@ -215,7 +259,7 @@ async function draw(){const my=++rid,pdf=R.pdf,n=pdf.numPages,st=$('#stage');
   await Promise.all(cs.map(o=>o.p.render({canvasContext:o.c.getContext('2d'),viewport:o.v}).promise));if(my!=rid)return;
   const els=cs.map(o=>o.c);if(rtl())els.reverse();$('#pageBox').replaceChildren(...els);st.scrollTop=0;
   R.pages=pages;R.p=pages[0];const last=Math.max(...pages)>=n,x=vs(R.v.id);
-  db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||last};persist();ui()}
+  const nd=!x.done&&cfg.auto&&last;db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||nd};if(nd&&cfg.casc)markDone(R.s,R.v.id,true);else persist();ui()}
 function ui(){const n=R.pdf.numPages,i=R.s.vols.findIndex(v=>v.id==R.v.id),last=Math.max(...R.pages)>=n;
   $('#rt').textContent=`${R.s.name} · ${R.v.name} · ${R.pages.length>1?R.pages.join('-'):R.p}/${n}`;
   $('#sl').value=R.p;$('#sl').style.direction=rtl()?'rtl':'ltr';$('#nx').hidden=!(last&&R.s.vols[i+1]);
@@ -230,7 +274,7 @@ $('#reader').onclick=e=>{const b=e.target.closest('[data-r]');
     if(a=='dir')setMeta(R.s.id,{rtl:!rtl()});if(a=='fs')return document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
     SV('cfg',cfg);return R.pdf&&draw()}
   if(e.target.closest('.bar'))return;if(Date.now()<swiped)return;
-  const f=e.clientX/innerWidth;if(f<.3)side(-1);else if(f>.7)side(1);else{$('#tb').classList.toggle('h');$('#bb').classList.toggle('h')}};
+  const f=e.clientX/innerWidth;if(f<.3)side(cfg.tap?1:-1);else if(f>.7)side(cfg.tap?-1:1);else{$('#tb').classList.toggle('h');$('#bb').classList.toggle('h')}};
 $('#sl').oninput=e=>{$('#rt').textContent=R.s.name+' · '+e.target.value+'/'+R.pdf.numPages};$('#sl').onchange=e=>{R.p=+e.target.value;draw()};
 let tx0=0,ty0=0,swiped=0;const stg=$('#stage');
 stg.addEventListener('touchstart',e=>{tx0=e.touches[0].clientX;ty0=e.touches[0].clientY},{passive:true});
@@ -238,9 +282,9 @@ stg.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx0,dy=
 addEventListener('keydown',e=>{if(!R||$('#reader').hidden)return;const k=e.key;
   if(k=='ArrowRight')side(1);else if(k=='ArrowLeft')side(-1);else if(k==' '||k=='PageDown'){e.preventDefault();go(1)}else if(k=='PageUp')go(-1);else if(k=='Escape')close();else if(k=='f')document.documentElement.requestFullscreen?.()});
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>R&&R.pdf&&draw(),250)});
-document.addEventListener('visibilitychange',async()=>{if(R&&!document.hidden){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
+document.addEventListener('visibilitychange',async()=>{if(R&&cfg.wake&&!document.hidden){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
 
-render();
+look();render();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
 </script>
 </body>
