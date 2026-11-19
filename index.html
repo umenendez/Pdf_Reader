@@ -75,11 +75,11 @@ dialog h4{margin:22px 0 2px;font-size:14px;font-weight:700;border-bottom:1px sol
 #reader{position:fixed;inset:0;z-index:30;background:var(--sb,#0b0d10);display:flex}
 #reader[hidden],#sheet[hidden]{display:none}
 #stage{position:relative;flex:1;min-width:0;overflow:hidden;display:flex;justify-content:center;align-items:flex-start;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-#pageBox{display:flex;margin:auto 0;transform-origin:0 0;will-change:transform}#pageBox canvas{display:block;flex:none;-webkit-user-drag:none}#pageBox.an{transition:transform .22s}
+#pageBox{position:relative;display:flex;margin:auto 0;transform-origin:0 0;will-change:transform}#pageBox canvas{display:block;flex:none;-webkit-user-drag:none}#pageBox.an{transition:transform .22s}
 #reader.sc #stage{padding:56px 0;box-sizing:border-box;overflow:auto;display:block;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 #reader.sc #pageBox{flex-direction:column;margin:0 auto;width:max-content;transform:none!important;box-shadow:0 0 0 transparent}
 #reader.sc .sp{box-shadow:0 1px 6px rgba(0,0,0,.45);margin:0 0 10px}
-.sp{flex:none;background:rgba(128,128,128,.08);overflow:hidden}.sp canvas{display:block;width:100%;height:100%}
+.sp{position:relative;flex:none;background:rgba(128,128,128,.08);overflow:hidden}.sp canvas{display:block;width:100%;height:100%}
 .inf{position:absolute;right:6px;bottom:6px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;display:grid;place-items:center;font-style:normal;font-size:15px;z-index:1}
 .bar{position:fixed;left:0;right:0;z-index:2;color:#e9edf2;--ln:rgba(255,255,255,.14);background:rgba(14,18,24,.8);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);display:flex;align-items:center;gap:10px;padding:8px max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));transition:transform .2s}
 .bar.top{flex-wrap:wrap;row-gap:6px;top:0;padding-top:calc(8px + env(safe-area-inset-top))}.bar.bot{bottom:0;flex-direction:column;align-items:stretch;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
@@ -334,11 +334,17 @@ function saveProg(){const n=R.pdf.numPages,last=Math.max(...R.pages)>=n,x=vs(R.v
 const saveNow=()=>{clearTimeout(svT);if(R&&R.pdf&&R.pages)saveProg()};
 
 /* --- modo página (con zoom, arrastre y precarga) --- */
-async function paint(p,w,h,k,q){const dpr=Math.min(devicePixelRatio||1,3),sc=Math.min(k*dpr*q,Math.sqrt(1.2e7/(w*h))),v=p.getViewport({scale:sc}),c=document.createElement('canvas');
+async function paint(p,w,h,k,q){const dpr=Math.min(devicePixelRatio||1,3),sc=Math.min(k*dpr*q,Math.sqrt(7e6/(w*h))),v=p.getViewport({scale:sc}),c=document.createElement('canvas');
   c.width=v.width;c.height=v.height;c.style.width=w*k+'px';c.style.height=h*k+'px';await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;return c}
 async function build(pages,me){const pg=await Promise.all(pages.map(i=>me.pdf.getPage(i))),vp=pg.map(p=>p.getViewport({scale:1})),W=vp.reduce((a,v)=>a+v.width,0),H=Math.max(...vp.map(v=>v.height));
   let k=stg.clientWidth/W;if(cfg.fit=='page')k=Math.min(k,stg.clientHeight/H);
   return{q:1,cs:await Promise.all(pg.map(async(p,i)=>({c:await paint(p,vp[i].width,vp[i].height,k,1),p,k,w:vp[i].width,h:vp[i].height})))}}
+/* Cambio de canvas sin parpadeo: el nuevo se coloca encima del viejo y éste se quita dos fotogramas después, cuando el nuevo ya se ha mostrado */
+const settle=f=>requestAnimationFrame(()=>requestAnimationFrame(f));
+function swapC(o,c){if(!o.parentNode)return;c.style.position='absolute';c.style.left=o.offsetLeft+'px';c.style.top=o.offsetTop+'px';o.after(c);
+  settle(()=>{c.style.position=c.style.left=c.style.top='';o.remove()})}
+function swapS(d,c){const o=d.firstChild;if(!o){d.replaceChildren(c);return}c.style.position='absolute';c.style.left=c.style.top='0';d.appendChild(c);
+  settle(()=>{if(c.parentNode!==d)return;c.style.position=c.style.left=c.style.top='';[...d.children].forEach(x=>{if(x!==c)x.remove()})})}
 const keep=(me,key,b)=>{b.key=key;me.cache.set(key,b);if(me.cache.size>5)me.cache.delete(me.cache.keys().next().value)};
 async function drawPages(){const my=++rid,me=R,n=R.pdf.numPages;$('#reader').classList.remove('sc');if(me.obs){me.obs.disconnect();me.obs=null}
   const pages=spread(R.p,n,isDbl()),key=keyOf(pages);if(R.b&&R.b.q>1)R.cache.delete(R.b.key);
@@ -354,7 +360,7 @@ const setT=()=>{box.style.transform=`translate(${Z.x}px,${Z.y}px) scale(${Z.s})`
 const applyZ=()=>{setT();clearTimeout(shT);shT=setTimeout(sharpen,220)};
 function place(){const k=R.keepZ;R.keepZ=0;Z.s=k||1;Z.x=k?(rtl()?-1e5:1e5):0;Z.y=1e5;clampZ();setT()}
 async function sharpen(){if(!R||!R.b||mode()=='scroll')return;const b=R.b,q=Math.min(Z.s,4),my=rid;if(q<=b.q*1.15)return;b.q=q;
-  for(const o of b.cs){const c=await paint(o.p,o.w,o.h,o.k,q);if(my!=rid||R.b!=b)return;o.c.replaceWith(c);o.c=c}}
+  for(const o of b.cs){const c=await paint(o.p,o.w,o.h,o.k,q);if(my!=rid||R.b!=b)return;swapC(o.c,c);o.c=c}}
 function zoomAt(x,y){const[bx,by]=bxy(),s=Z.s>1.05?1:2.5,cx=(x-bx-Z.x)/Z.s,cy=(y-by-Z.y)/Z.s;Z.s=s;Z.x=x-bx-s*cx;Z.y=y-by-s*cy;clampZ();box.classList.add('an');applyZ();setTimeout(()=>box.classList.remove('an'),260)}
 function tap(x,y){const f=x/stg.clientWidth,t=Date.now();
   if(f>=.3&&f<=.7){if(t-lastTap<300){clearTimeout(tapT);lastTap=0;return zoomAt(x,y)}lastTap=t;tapT=setTimeout(tgl,260);return}
@@ -399,8 +405,8 @@ async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.o
   else{const[w,h]=me.sz[me.p-1];stg.scrollTop=(me.tops[me.p-1]||0)+f*Wc*h/w}
   me.pages=[me.p];ui()}
 async function paintS(d,my){if((d.firstChild&&!d.firstChild.ph)||d.busy)return;d.busy=1;try{const me=R,i=+d.dataset.i,p=await me.pdf.getPage(i),[w,h]=me.sz[i-1],dpr=Math.min(devicePixelRatio||1,2.5),
-  v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(1.2e7/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
-  await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)d.replaceChildren(c)}catch{}d.busy=0}
+  v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(7e6/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+  await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)swapS(d,c)}catch{}d.busy=0}
 stg.addEventListener('scroll',()=>{if(!R||!R.tops||mode()!='scroll'||raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!R||!R.tops)return;
   const t=stg.scrollTop+stg.clientHeight*.25;let lo=0,hi=R.tops.length-1;while(lo<hi){const m=(lo+hi+1)>>1;R.tops[m]<=t?lo=m:hi=m-1}
   if(R.p!=lo+1){R.p=lo+1;R.pages=[R.p];ui()}clearTimeout(svT);svT=setTimeout(saveNow,500)})});
