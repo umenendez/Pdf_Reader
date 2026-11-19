@@ -223,7 +223,29 @@ const big=t=>t&&t.replace(/=s\d+$/,'=s400');
 const src=s=>{const m=sm(s.id),c=s.vols.find(v=>v.id==m.cv);return m.cover||(c&&big(c.thumb))||m.malCover||big(s.vols[0].thumb)};
 const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
 const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
-async function malCover(s,force=false){if(!force&&(src(s)||sm(s.id).malTried))return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)throw new Error('MAL no disponible');const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u,malTried:false});render();return true}status('No se encontró una portada en MAL');return false}catch(e){status('No se pudo buscar la portada en MAL');return false}}
+/* Portada online: AniList (GraphQL, fiable y con CORS) y, si falla, Jikan/MAL. Jikan da 504 a menudo. */
+const cleanName=n=>n.replace(/[\[(].*?[\])]/g,' ').replace(/[_.]+/g,' ').replace(/\b(vol(umen)?|tomo|cap(itulo)?|ch(apter)?)\s*\.?\s*\d+.*$/i,' ').replace(/\s+/g,' ').trim();
+async function findCover(name){const q=cleanName(name)||name,tm=ms=>{const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal};
+  try{const r=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},signal:tm(10000),
+    body:JSON.stringify({query:'query($s:String){Page(perPage:1){media(search:$s,type:MANGA,sort:SEARCH_MATCH){coverImage{extraLarge large}}}}',variables:{s:q}})});
+    if(r.ok){const j=await r.json(),c=j?.data?.Page?.media?.[0]?.coverImage;if(c&&(c.extraLarge||c.large))return c.extraLarge||c.large;return null}}catch{}
+  try{const r=await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=1&sfw=true`,{signal:tm(10000)});
+    if(r.ok){const j=await r.json(),im=j?.data?.[0]?.images?.jpg;return im?.large_image_url||im?.image_url||null}}catch{}
+  throw new Error('sin conexión con AniList ni MAL')}
+const malBusy=new Set();let malChain=Promise.resolve();
+const putMeta=(id,p)=>{db.sagas[id]={...sm(id),...p};persist()};
+function malCover(s,force=false){
+  if(force!==true)force=false;
+  const m=sm(s.id);
+  if(!force){if(m.malOff||src(s)||malBusy.has(s.id))return;const w=m.malNF?30*864e5:36e5;if(m.malT&&Date.now()-m.malT<w)return}
+  if(malBusy.has(s.id))return;malBusy.add(s.id);
+  const job=malChain.then(async()=>{
+    try{const u=await findCover(s.name);
+      if(u){putMeta(s.id,{malCover:u,malOff:false,malT:0,malNF:false});render();return true}
+      putMeta(s.id,{malT:Date.now(),malNF:true});if(force)status('No se encontró una portada online');return false}
+    catch(e){console.warn('portada:',e);putMeta(s.id,{malT:Date.now(),malNF:false});if(force)status('No se pudo buscar la portada (sin conexión con el servicio)');return false}
+    finally{malBusy.delete(s.id);await new Promise(r=>setTimeout(r,force?0:400))}});
+  malChain=job.catch(()=>{});return job}
 /* portada desde un tomo concreto: miniatura de Drive o 1ª página del PDF guardado */
 async function volCover(s,vid){const v=s.vols.find(x=>x.id==vid);if(!v)return;
   if(v.thumb)return setMeta(s.id,{cv:vid,cover:'',malCover:'',malTried:true});
@@ -251,7 +273,7 @@ function render(){
   if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}${tag(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
   h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
     return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:'')+`<i class="inf" data-info="${s.id}" role="button" aria-label="Volúmenes y opciones">☰</i>`)}${tag(s)}<div class="nm">${esc(s.name)}</div>${resSub(s)}<div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
-  $('#main').innerHTML=h; l.forEach(malCover)}
+  $('#main').innerHTML=h; l.forEach(x=>malCover(x))}
 $('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const i=e.target.closest('[data-info]');if(i)return openSheet(i.dataset.info);const d=e.target.closest('[data-id]');if(d){const s=lib.find(x=>x.id==d.dataset.id);if(s)return openReader(resume(s).id)}if(e.target.id=='go')ok2()};
 const ok2=()=>cfg.clientId&&cfg.roots.length?sync():$('#localIn').click();
 $('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
@@ -284,7 +306,7 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur,s=lib.
   if(b){const a=b.dataset.a,v=b.dataset.v;
     if(a=='type')setMeta(id,{type:sm(id).type==b.dataset.t?'':b.dataset.t});
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
-    if(a=='uncover')setMeta(id,{cover:'',cv:'',malCover:'',malTried:true});
+    if(a=='uncover')setMeta(id,{cover:'',cv:'',malCover:'',malOff:true});
     if(a=='vcover'){try{b.textContent='…';await volCover(s,v)}catch(er){status('Portada: '+er.message)}}
     if(a=='delvol'||a=='delsaga'){const all=a=='delsaga';if(!confirm(all?`¿Eliminar «${s.name}» y todos sus PDFs de este dispositivo?`:'¿Eliminar este volumen de este dispositivo?'))return;await delLocal(id,all?null:v);if(!lib.find(x=>x.id==id)){$('#sheet').hidden=true;return render()}render()}
     if(a=='cover')return $('#cvIn').click();
