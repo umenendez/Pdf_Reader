@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Biblioteca Drive</title>
+<meta name="theme-color" content="#11151b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#11151b;--pn:#1a212a;--ln:#2a3340;--tx:#e9edf2;--mu:#8b97a6;--ac:#7aa2ff;--r:6px}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.4 "Bricolage Grotesque",system-ui,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+button,select,input{font:inherit;color:inherit}button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+header{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;background:var(--bg);border-bottom:1px solid var(--ln)}
+h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-right:auto}
+#q{width:min(260px,45vw);background:var(--pn);border:1px solid var(--ln);border-radius:var(--r);padding:7px 10px}
+.ib{width:36px;height:36px;border-radius:var(--r);background:var(--pn);border:1px solid var(--ln);font-size:17px}
+#ss{position:absolute;bottom:-18px;right:16px;font-size:11px;color:var(--mu)}
+#filters{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none}
+.chip{white-space:nowrap;border:1px solid var(--ln);border-radius:99px;padding:5px 12px;color:var(--mu);font-size:13px}
+.chip.on{background:var(--ac);border-color:var(--ac);color:#0b1020;font-weight:600}
+.sep{width:1px;height:18px;background:var(--ln);flex:none}
+select{background:var(--pn);border:1px solid var(--ln);border-radius:var(--r);padding:5px 8px;font-size:13px}
+main{padding:12px 16px 40px}
+h3{font-size:13px;color:var(--mu);font-weight:600;margin:14px 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:18px 14px}
+.row2{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}.row2 .card{width:120px;flex:none}
+.card{text-align:left;display:block}
+.cv{position:relative;aspect-ratio:2/3;border-radius:var(--r);overflow:hidden;background:hsl(var(--h) 30% 24%);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.cv span{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;font-weight:800;font-size:15px;line-height:1.1}
+.cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.fv{position:absolute;top:6px;left:6px;font-style:normal;color:#ff7a90;text-shadow:0 1px 3px #000}
+.cnt{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);border-radius:99px;font-size:11px;padding:1px 8px}
+.nm{margin-top:6px;font-size:13px;font-weight:600;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sub{font-size:12px;color:var(--mu)}
+.pg{height:3px;background:var(--ln);margin-top:5px}.pg i{display:block;height:100%;background:var(--ac)}
+.empty{max-width:440px;margin:60px auto;color:var(--mu)}.empty h2{color:var(--tx);margin-bottom:8px}
+.btn{background:var(--ac);color:#0b1020;font-weight:700;border-radius:var(--r);padding:9px 16px;margin-top:14px}
+#sheet{position:fixed;inset:0;z-index:20;background:rgba(5,7,10,.7);display:flex;align-items:flex-end;justify-content:center}
+.sh{background:var(--pn);width:min(640px,100%);max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px;position:relative}
+.sh .x{position:absolute;top:8px;right:12px;font-size:26px;color:var(--mu)}
+.top{display:flex;gap:16px;margin-bottom:14px}.top .cv{width:120px;flex:none}.top h2{font-size:20px;letter-spacing:-.02em;margin-bottom:10px;padding-right:24px}
+.rw{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+ul{list-style:none;padding:0}
+li{display:grid;grid-template-columns:1fr auto auto;gap:4px 8px;align-items:center;padding:10px 0;border-top:1px solid var(--ln);cursor:pointer}
+li small{color:var(--mu)}li .pg{grid-column:1/-1;margin:0}
+li button{color:var(--mu);font-size:12px;border:1px solid var(--ln);border-radius:var(--r);padding:3px 8px}
+li button.on{color:var(--ac);border-color:var(--ac)}
+dialog{margin:auto;background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:12px;padding:20px;width:min(460px,92vw)}
+dialog::backdrop{background:rgba(5,7,10,.7)}
+dialog label{display:block;margin-top:12px;font-size:13px;color:var(--mu)}
+dialog input{width:100%;background:var(--bg);border:1px solid var(--ln);border-radius:var(--r);padding:8px;margin-top:4px}
+dialog p{font-size:12.5px;color:var(--mu);margin-top:10px}
+#reader{position:fixed;inset:0;z-index:30;background:var(--sb,#0b0d10);display:flex}
+#reader[hidden],#sheet[hidden]{display:none}
+#stage{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;-webkit-overflow-scrolling:touch}
+#pageBox{display:flex;margin:auto 0}#pageBox canvas{display:block}
+.bar{position:fixed;left:0;right:0;z-index:2;background:rgba(17,21,27,.94);display:flex;align-items:center;gap:10px;padding:8px 14px;transition:transform .2s}
+.bar.top{top:0;padding-top:calc(8px + env(safe-area-inset-top))}.bar.bot{bottom:0;flex-direction:column;align-items:stretch;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.bar.top.h{transform:translateY(-110%)}.bar.bot.h{transform:translateY(110%)}
+.bar button{padding:5px 10px;border:1px solid var(--ln);border-radius:var(--r);font-size:13px}
+#rt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#sl{width:100%;accent-color:var(--ac)}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+</head>
+<body>
+<header>
+  <h1>Biblioteca</h1>
+  <input id="q" type="search" placeholder="Buscar saga" aria-label="Buscar saga">
+  <button class="ib" id="sy" title="Sincronizar con Drive" aria-label="Sincronizar con Drive">⟳</button>
+  <button class="ib" id="st" title="Ajustes" aria-label="Ajustes">⚙</button>
+  <span id="ss"></span>
+</header>
+<nav id="filters"></nav>
+<main id="main"></main>
+<div id="sheet" hidden></div>
+<input type="file" id="cvIn" accept="image/*" hidden>
+<div id="reader" hidden>
+  <div id="stage"><div id="pageBox"></div></div>
+  <div class="bar top" id="tb"><button data-r="close" aria-label="Cerrar">←</button><span id="rt"></span><button data-r="nextvol" id="nx" hidden>Siguiente vol.</button></div>
+  <div class="bar bot" id="bb"><input type="range" id="sl" min="1" value="1" aria-label="Página">
+    <div class="tools"><button data-r="mode"></button><button data-r="dir"></button><button data-r="fit"></button><button data-r="theme"></button><button data-r="fs" aria-label="Pantalla completa">⛶</button></div></div>
+</div>
+<dialog id="cfgd">
+  <h2>Conectar con Drive</h2>
+  <label>ID de cliente de Google (OAuth)<input id="cid" placeholder="123-abc.apps.googleusercontent.com"></label>
+  <label>Carpeta raíz de Drive (enlace o ID)<input id="rootIn" placeholder="https://drive.google.com/drive/folders/..."></label>
+  <p>Cada subcarpeta es una saga y sus PDFs son los volúmenes. Los PDFs sueltos en la raíz se muestran como obras de un solo volumen.</p>
+  <button class="btn" id="save">Guardar y sincronizar</button>
+</dialog>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
+let cfg=LS('cfg')||{clientId:'',root:'',theme:0,mode:'auto',fit:'page'};
+let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:'recent'},R=null,cur=null,timer;
+const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{};
+const status=t=>{$('#ss').textContent=t;if(t)setTimeout(()=>{if($('#ss').textContent==t)$('#ss').textContent=''},3500)};
+
+/* ---------- almacenamiento offline (IndexedDB) ---------- */
+const idb=new Promise(r=>{const q=indexedDB.open('lector',1);q.onupgradeneeded=()=>q.result.createObjectStore('pdf');q.onsuccess=()=>r(q.result)});
+const tx=async(m,f)=>{const d=await idb;return new Promise((ok,ko)=>{const q=f(d.transaction('pdf',m).objectStore('pdf'));q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)})};
+tx('readonly',o=>o.getAllKeys()).then(k=>{off=new Set(k)});
+
+/* ---------- Google Drive ---------- */
+function auth(){return new Promise((ok,ko)=>{
+  if(token&&Date.now()<tokExp-60000)return ok(token);
+  if(!cfg.clientId)return ko(new Error('Falta el ID de cliente'));
+  if(typeof google==='undefined')return ko(new Error('Sin conexión'));
+  google.accounts.oauth2.initTokenClient({client_id:cfg.clientId,scope:'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata',
+    callback:r=>{if(r.error)return ko(new Error(r.error));token=r.access_token;tokExp=Date.now()+r.expires_in*1000;localStorage.setItem('hint','1');ok(token)}
+  }).requestAccessToken({prompt:localStorage.getItem('hint')?'':'consent'})})}
+async function g(u,o={},retry=1){const t=await auth();
+  const r=await fetch(u.startsWith('http')?u:'https://www.googleapis.com/drive/v3/'+u,{...o,headers:{...o.headers,Authorization:'Bearer '+t}});
+  if(r.status==401&&retry){token=null;return g(u,o,0)}if(!r.ok)throw new Error('Drive '+r.status);return r}
+async function list(q,extra=''){let out=[],pt='';do{const r=await(await g('files?pageSize=1000&fields=nextPageToken,files(id,name,mimeType,thumbnailLink)&q='+encodeURIComponent(q)+extra+(pt?'&pageToken='+pt:''))).json();out.push(...r.files);pt=r.nextPageToken}while(pt);return out}
+const nat=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}),clean=n=>n.replace(/\.pdf$/i,'');
+async function sync(){try{status('Sincronizando…');
+  const it=await list(`'${cfg.root}' in parents and trashed=false`),res=[];
+  await Promise.all(it.filter(i=>i.mimeType=='application/vnd.google-apps.folder').map(async f=>{
+    const v=(await list(`'${f.id}' in parents and trashed=false and mimeType='application/pdf'`)).sort(nat);
+    if(v.length)res.push({id:f.id,name:f.name,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
+  it.filter(i=>i.mimeType=='application/pdf').forEach(p=>res.push({id:p.id,name:clean(p.name),vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}));
+  lib=res.sort(nat);SV('lib',lib);await pull();await push();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}}
+const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0))db.sagas[k]=a.sagas[k]};
+async function pull(){const f=(await(await g('files?spaces=appDataFolder&fields=files(id)&q='+encodeURIComponent("name='lector.json'"))).json()).files;
+  if(f[0]){pfid=f[0].id;SV('pfid',pfid);merge(await(await g('files/'+pfid+'?alt=media')).json());SV('db',db)}}
+async function push(){const body=JSON.stringify(db);
+  if(pfid)await g(`https://www.googleapis.com/upload/drive/v3/files/${pfid}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body});
+  else{const r=await g('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary=bd'},
+    body:`--bd\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:'lector.json',parents:['appDataFolder']})}\r\n--bd\r\nContent-Type: application/json\r\n\r\n${body}\r\n--bd--`});
+    pfid=(await r.json()).id;SV('pfid',pfid)}}
+function persist(){SV('db',db);clearTimeout(timer);timer=setTimeout(()=>{if(token)push().catch(()=>{})},4000)}
+const setMeta=(id,p)=>{db.sagas[id]={...sm(id),...p,t:Date.now()};persist()};
+
+/* ---------- biblioteca ---------- */
+const hue=s=>[...s].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
+function stat(s){const d=s.vols.filter(v=>vs(v.id).done).length,st=s.vols.filter(v=>vs(v.id).p>1||vs(v.id).done).length;
+  const part=s.vols.reduce((a,v)=>{const x=vs(v.id);return a+(x.done?1:x.n?(x.p-1)/x.n:0)},0)/s.vols.length;
+  return{d,pct:Math.round(part*100),s:d==s.vols.length?'done':st?'reading':'new'}}
+const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
+const src=s=>sm(s.id).cover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
+const cover=(s,x='')=>`<div class="cv" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`;
+function render(){
+  const ok=cfg.clientId&&cfg.root;$('#filters').hidden=!lib.length;
+  if(!ok||!lib.length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Conecta tu Drive'}</h2>${ok?'Pulsa ⟳ para leer tu carpeta de Drive.':'Indica tu ID de cliente de Google y la carpeta donde tienes los PDFs. Cada subcarpeta será una saga.'}<br><button class="btn" id="go">${ok?'Sincronizar':'Configurar'}</button></div>`;return}
+  const ch=(k,o)=>o.map(([v,l])=>`<button class="chip ${F[k]===v?'on':''}" data-f="${k}" data-v="${v}">${l}</button>`).join('');
+  $('#filters').innerHTML=ch('type',[['','Todos'],...TYPES.map(t=>[t,t])])+'<span class="sep"></span>'+ch('st',[['','Todo'],['new','Sin empezar'],['reading','Leyendo'],['done','Terminados']])+
+    `<span class="sep"></span><button class="chip ${F.fav?'on':''}" data-f="fav">♥ Favoritos</button><select id="so" aria-label="Ordenar"><option value="recent">Recientes</option><option value="name">A–Z</option></select>`;
+  $('#so').value=F.sort;
+  let l=lib.filter(s=>(!F.q||s.name.toLowerCase().includes(F.q))&&(!F.type||sm(s.id).type==F.type)&&(!F.st||stat(s).s==F.st)&&(!F.fav||sm(s.id).fav));
+  if(F.sort=='recent')l.sort((a,b)=>lastT(b)-lastT(a)||nat(a,b));
+  let h='';
+  const cont=lib.flatMap(s=>s.vols.filter(v=>{const x=vs(v.id);return x.p>1&&!x.done}).map(v=>({s,v,t:vs(v.id).t}))).sort((a,b)=>b.t-a.t).slice(0,8);
+  if(cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
+  h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
+    return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:''))}<div class="nm">${esc(s.name)}</div><div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
+  $('#main').innerHTML=h}
+$('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const d=e.target.closest('[data-id]');if(d)openSheet(d.dataset.id);if(e.target.id=='go')ok2()};
+const ok2=()=>cfg.clientId&&cfg.root?sync():$('#cfgd').showModal();
+$('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
+$('#filters').onchange=e=>{F.sort=e.target.value;render()};
+$('#q').oninput=e=>{F.q=e.target.value.toLowerCase();render()};
+$('#sy').onclick=ok2;$('#st').onclick=()=>{$('#cid').value=cfg.clientId;$('#rootIn').value=cfg.root;$('#cfgd').showModal()};
+$('#save').onclick=()=>{cfg.clientId=$('#cid').value.trim();const r=$('#rootIn').value.trim();cfg.root=(r.match(/folders\/([\w-]+)/)||[,r])[1];SV('cfg',cfg);$('#cfgd').close();sync()};
+
+/* ---------- ficha de saga ---------- */
+function openSheet(id){cur=id;const s=lib.find(x=>x.id==id);if(!s)return;const m=sm(id);
+  $('#sheet').innerHTML=`<div class="sh"><button class="x" data-a="close" aria-label="Cerrar">×</button><div class="top">${cover(s)}<div><h2>${esc(s.name)}</h2>
+  <div class="rw">${TYPES.map(t=>`<button class="chip ${m.type==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
+  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
+  <ul>${s.vols.map(v=>{const x=vs(v.id);return `<li data-v="${v.id}"><span>${esc(v.name)}</span><small>${x.done?'Leído':x.p>1?`pág. ${x.p}/${x.n}`:''}</small><span><button data-a="done" data-v="${v.id}" class="${x.done?'on':''}">✓</button> <button data-a="dl" data-v="${v.id}" class="${off.has(v.id)?'on':''}">${off.has(v.id)?'Sin conexión ✓':'Descargar'}</button></span><div class="pg"><i style="width:${x.done?100:x.n?Math.round((x.p-1)/x.n*100):0}%"></i></div></li>`}).join('')}</ul></div>`;
+  $('#sheet').hidden=false}
+$('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
+  if(e.target.id=='sheet'||(b&&b.dataset.a=='close')){$('#sheet').hidden=true;return render()}
+  if(b){const a=b.dataset.a,v=b.dataset.v;
+    if(a=='type')setMeta(id,{type:sm(id).type==b.dataset.t?'':b.dataset.t});
+    if(a=='fav')setMeta(id,{fav:!sm(id).fav});
+    if(a=='uncover')setMeta(id,{cover:''});
+    if(a=='cover')return $('#cvIn').click();
+    if(a=='done'){const x=vs(v);db.vols[v]={...x,p:x.p||1,n:x.n||0,done:!x.done,t:Date.now()};persist()}
+    if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v)}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v)}}catch(er){status('Error: '+er.message)}}
+    return openSheet(id)}
+  const li=e.target.closest('li[data-v]');if(li){$('#sheet').hidden=true;openReader(li.dataset.v)}};
+$('#cvIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=await createImageBitmap(f),k=300/b.width,c=document.createElement('canvas');c.width=300;c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
+  setMeta(cur,{cover:c.toDataURL('image/jpeg',.75)});e.target.value='';openSheet(cur)};
+
+/* ---------- lector ---------- */
+let wl=null,rid=0;
+const rtl=()=>{const m=sm(R.s.id);return m.rtl??m.type=='Manga'};
+const isDbl=()=>cfg.mode=='double'||(cfg.mode=='auto'&&$('#stage').clientWidth>$('#stage').clientHeight*1.05);
+const spread=(p,n,d)=>{if(!d||p==1)return[p];const a=p%2?p-1:p;return a+1<=n?[a,a+1]:[a]};
+async function openReader(vid){const s=lib.find(x=>x.vols.some(v=>v.id==vid)),v=s.vols.find(v=>v.id==vid);
+  R={s,v,pdf:null,p:1};$('#reader').hidden=false;$('#pageBox').replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';
+  try{let buf=await tx('readonly',o=>o.get(vid));if(!buf)buf=await(await g('files/'+vid+'?alt=media')).arrayBuffer();
+    R.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
+    const x=vs(vid);R.p=x.done?1:Math.min(x.p||1,R.pdf.numPages);
+    const sl=$('#sl');sl.max=R.pdf.numPages;try{wl=await navigator.wakeLock.request('screen')}catch{}
+    $('#tb').classList.remove('h');$('#bb').classList.remove('h');draw()}
+  catch(er){$('#rt').textContent='No se pudo abrir: '+er.message}}
+async function draw(){const my=++rid,pdf=R.pdf,n=pdf.numPages,st=$('#stage');
+  const pages=spread(R.p,n,isDbl()),pg=await Promise.all(pages.map(i=>pdf.getPage(i)));if(my!=rid)return;
+  const vp=pg.map(p=>p.getViewport({scale:1})),W=vp.reduce((a,v)=>a+v.width,0),H=Math.max(...vp.map(v=>v.height));
+  let k=st.clientWidth/W;if(cfg.fit=='page')k=Math.min(k,st.clientHeight/H);
+  const dpr=Math.min(devicePixelRatio||1,2),cs=pg.map(p=>{const c=document.createElement('canvas'),v=p.getViewport({scale:k*dpr});c.width=v.width;c.height=v.height;c.style.width=v.width/dpr+'px';c.style.height=v.height/dpr+'px';return{c,p,v}});
+  await Promise.all(cs.map(o=>o.p.render({canvasContext:o.c.getContext('2d'),viewport:o.v}).promise));if(my!=rid)return;
+  const els=cs.map(o=>o.c);if(rtl())els.reverse();$('#pageBox').replaceChildren(...els);st.scrollTop=0;
+  R.pages=pages;R.p=pages[0];const last=Math.max(...pages)>=n,x=vs(R.v.id);
+  db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||last};persist();ui()}
+function ui(){const n=R.pdf.numPages,i=R.s.vols.findIndex(v=>v.id==R.v.id),last=Math.max(...R.pages)>=n;
+  $('#rt').textContent=`${R.s.name} · ${R.v.name} · ${R.pages.length>1?R.pages.join('-'):R.p}/${n}`;
+  $('#sl').value=R.p;$('#sl').style.direction=rtl()?'rtl':'ltr';$('#nx').hidden=!(last&&R.s.vols[i+1]);
+  const L={mode:{auto:'Auto',single:'1 página',double:'2 páginas'}[cfg.mode],dir:rtl()?'← Der. a izq.':'Izq. a der. →',fit:cfg.fit=='page'?'Página entera':'Ancho',theme:THEMES[cfg.theme][0]};
+  document.querySelectorAll('[data-r]').forEach(b=>{if(L[b.dataset.r])b.textContent=L[b.dataset.r]});$('#reader').style.setProperty('--sb',THEMES[cfg.theme][1])}
+const go=d=>{if(!R||!R.pdf)return;const n=R.pdf.numPages;R.p=d>0?Math.min(n,Math.max(...R.pages)+1):Math.max(1,R.pages[0]-1);if(d>0&&Math.max(...R.pages)>=n)return;draw()};
+const side=d=>go(rtl()?-d:d);
+function close(){R=null;rid++;$('#reader').hidden=true;document.body.style.overflow='';if(wl)wl.release().catch(()=>{});if(document.fullscreenElement)document.exitFullscreen();render()}
+$('#reader').onclick=e=>{const b=e.target.closest('[data-r]');
+  if(b){const a=b.dataset.r;if(a=='close')return close();if(a=='nextvol'){const i=R.s.vols.findIndex(v=>v.id==R.v.id);return openReader(R.s.vols[i+1].id)}
+    if(a=='mode')cfg.mode={auto:'single',single:'double',double:'auto'}[cfg.mode];if(a=='fit')cfg.fit=cfg.fit=='page'?'width':'page';if(a=='theme')cfg.theme=(cfg.theme+1)%THEMES.length;
+    if(a=='dir')setMeta(R.s.id,{rtl:!rtl()});if(a=='fs')return document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
+    SV('cfg',cfg);return R.pdf&&draw()}
+  if(e.target.closest('.bar'))return;if(Date.now()<swiped)return;
+  const f=e.clientX/innerWidth;if(f<.3)side(-1);else if(f>.7)side(1);else{$('#tb').classList.toggle('h');$('#bb').classList.toggle('h')}};
+$('#sl').oninput=e=>{$('#rt').textContent=R.s.name+' · '+e.target.value+'/'+R.pdf.numPages};$('#sl').onchange=e=>{R.p=+e.target.value;draw()};
+let tx0=0,ty0=0,swiped=0;const stg=$('#stage');
+stg.addEventListener('touchstart',e=>{tx0=e.touches[0].clientX;ty0=e.touches[0].clientY},{passive:true});
+stg.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx0,dy=e.changedTouches[0].clientY-ty0;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){swiped=Date.now()+400;side(dx<0?1:-1)}});
+addEventListener('keydown',e=>{if(!R||$('#reader').hidden)return;const k=e.key;
+  if(k=='ArrowRight')side(1);else if(k=='ArrowLeft')side(-1);else if(k==' '||k=='PageDown'){e.preventDefault();go(1)}else if(k=='PageUp')go(-1);else if(k=='Escape')close();else if(k=='f')document.documentElement.requestFullscreen?.()});
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>R&&R.pdf&&draw(),250)});
+document.addEventListener('visibilitychange',async()=>{if(R&&!document.hidden){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
+
+render();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
