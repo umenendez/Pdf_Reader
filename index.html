@@ -389,13 +389,16 @@ async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.o
   let f=me.o??0;me.o=null;if(me.tops&&me.tops[me.p-1]!=null){const[w,h]=me.sz[me.p-1];f=Math.max(0,(stg.scrollTop-me.tops[me.p-1])/(me.Wc*h/w))}
   const Wc=stg.clientWidth*cfg.zw,GAP=10;let y=0;me.tops=[];me.Wc=Wc;
   const ds=me.sz.map(([w,h],i)=>{const d=document.createElement('div'),H=Wc*h/w;d.className='sp';d.dataset.i=i+1;d.style.cssText=`width:${Wc}px;height:${H}px`;me.tops.push(y);y+=H+GAP;return d});
+  /* al redibujar (zoom, giro…) las páginas ya pintadas se quedan estiradas como marcador hasta que llega la nueva versión, para que no se vea un hueco negro */
+  const old=new Map([...box.querySelectorAll('.sp')].filter(d=>d.firstChild).map(d=>[d.dataset.i,d.firstChild]));
+  ds.forEach(d=>{const c=old.get(d.dataset.i);if(c){c.ph=1;d.appendChild(c)}});
   box.replaceChildren(...ds);
   me.obs=new IntersectionObserver(es=>es.forEach(en=>{const d=en.target;d.on=en.isIntersecting;if(d.on)paintS(d,my);else d.replaceChildren()}),{root:stg,rootMargin:'250% 0px'});ds.forEach(d=>me.obs.observe(d));
   const ps=me.ps;me.ps=null;
   if(ps){stg.scrollTop=ps.cy*ps.r-(ps.my-box.offsetTop);stg.scrollLeft=ps.cx*ps.r+box.offsetLeft-ps.mx}
   else{const[w,h]=me.sz[me.p-1];stg.scrollTop=(me.tops[me.p-1]||0)+f*Wc*h/w}
   me.pages=[me.p];ui()}
-async function paintS(d,my){if(d.firstChild||d.busy)return;d.busy=1;try{const me=R,i=+d.dataset.i,p=await me.pdf.getPage(i),[w,h]=me.sz[i-1],dpr=Math.min(devicePixelRatio||1,2.5),
+async function paintS(d,my){if((d.firstChild&&!d.firstChild.ph)||d.busy)return;d.busy=1;try{const me=R,i=+d.dataset.i,p=await me.pdf.getPage(i),[w,h]=me.sz[i-1],dpr=Math.min(devicePixelRatio||1,2.5),
   v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(1.2e7/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
   await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)d.replaceChildren(c)}catch{}d.busy=0}
 stg.addEventListener('scroll',()=>{if(!R||!R.tops||mode()!='scroll'||raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!R||!R.tops)return;
