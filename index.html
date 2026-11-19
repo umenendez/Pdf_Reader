@@ -138,7 +138,7 @@ const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&
 const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
 const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1,side:false};
-let cfg={...DEF,...(LS('cfg')||{})};if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
+let cfg={...DEF,...(LS('cfg')||{})};let authInteractive=true;if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
 let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
 const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
 function markDone(s,vid,on){const i=s.vols.findIndex(v=>v.id==vid),r=cfg.casc?(on?s.vols.slice(0,i+1):s.vols.slice(i)):[s.vols[i]];
@@ -154,34 +154,46 @@ const tx=async(m,f)=>{const d=await idb;return new Promise((ok,ko)=>{const q=f(d
 tx('readonly',o=>o.getAllKeys()).then(k=>{off=new Set(k)});
 
 /* ---------- Google Drive ---------- */
-function auth(){return new Promise((ok,ko)=>{
+function auth(interactive=authInteractive){return new Promise((ok,ko)=>{
   if(token&&Date.now()<tokExp-60000)return ok(token);
   if(!cfg.clientId)return ko(new Error('Falta el ID de cliente'));
   if(typeof google==='undefined')return ko(new Error('Sin conexión'));
-  google.accounts.oauth2.initTokenClient({client_id:cfg.clientId,scope:'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata',
-    callback:r=>{if(r.error)return ko(new Error(r.error));token=r.access_token;tokExp=Date.now()+r.expires_in*1000;localStorage.setItem('hint','1');ok(token)}
-  }).requestAccessToken({prompt:localStorage.getItem('hint')?'':'consent'})})}
-async function g(u,o={},retry=1){const t=await auth();
+  const silent=!interactive&&!!localStorage.getItem('hint');
+  const request=mode=>google.accounts.oauth2.initTokenClient({
+    client_id:cfg.clientId,
+    scope:'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata',
+    callback:r=>{
+      if(r.error){
+        if(mode=='none'&&interactive)return request('consent');
+        return ko(new Error(r.error));
+      }
+      token=r.access_token;tokExp=Date.now()+r.expires_in*1000;localStorage.setItem('hint','1');ok(token)
+    }
+  }).requestAccessToken({prompt:mode});
+  if(!interactive&&!localStorage.getItem('hint'))return ko(new Error('No hay una sesión de Google disponible en segundo plano'));
+  request(silent?'none':'consent');
+})}
+async function g(u,o={},retry=1,interactive=authInteractive){const t=await auth(interactive);
   const r=await fetch(u.startsWith('http')?u:'https://www.googleapis.com/drive/v3/'+u,{...o,headers:{...o.headers,Authorization:'Bearer '+t}});
-  if(r.status==401&&retry){token=null;return g(u,o,0)}if(!r.ok)throw new Error('Drive '+r.status);return r}
+  if(r.status==401&&retry){token=null;return g(u,o,0,interactive)}if(!r.ok)throw new Error('Drive '+r.status);return r}
 async function list(q,extra=''){let out=[],pt='';do{const r=await(await g('files?pageSize=1000&fields=nextPageToken,files(id,name,mimeType,thumbnailLink)&q='+encodeURIComponent(q)+extra+(pt?'&pageToken='+pt:''))).json();out.push(...r.files);pt=r.nextPageToken}while(pt);return out}
 const nat=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}),clean=n=>n.replace(/\.pdf$/i,'');
-async function sync(){try{status('Sincronizando…');const res=[],seen=new Set(),add=x=>{if(!seen.has(x.id)){seen.add(x.id);res.push(x)}};
+async function sync(interactive=true){const prev=authInteractive;authInteractive=interactive;try{status('Sincronizando…');const res=[],seen=new Set(),add=x=>{if(!seen.has(x.id)){seen.add(x.id);res.push(x)}};
   for(const r of cfg.roots){const it=await list(`'${r.id}' in parents and trashed=false`);
     await Promise.all(it.filter(i=>i.mimeType=='application/vnd.google-apps.folder').map(async f=>{
       const v=(await list(`'${f.id}' in parents and trashed=false and mimeType='application/pdf'`)).sort(nat);
       if(v.length)add({id:f.id,name:f.name,rt:r.type,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
     it.filter(i=>i.mimeType=='application/pdf').forEach(p=>add({id:p.id,name:clean(p.name),rt:r.type,vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}))}
-  lib=res.sort(nat);SV('lib',lib);await pull();await push();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}}
+  lib=res.sort(nat);SV('lib',lib);await pull();await push();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}finally{authInteractive=prev}}
 const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0))db.sagas[k]=a.sagas[k]};
 async function pull(){const f=(await(await g('files?spaces=appDataFolder&fields=files(id)&q='+encodeURIComponent("name='lector.json'"))).json()).files;
   if(f[0]){pfid=f[0].id;SV('pfid',pfid);merge(await(await g('files/'+pfid+'?alt=media')).json());SV('db',db)}}
 async function push(){const body=JSON.stringify(db);
-  if(pfid)await g(`https://www.googleapis.com/upload/drive/v3/files/${pfid}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body});
+  if(pfid)await g(`https://www.googleapis.com/upload/drive/v3/files/${pfid}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body},1,false);
   else{const r=await g('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary=bd'},
-    body:`--bd\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:'lector.json',parents:['appDataFolder']})}\r\n--bd\r\nContent-Type: application/json\r\n\r\n${body}\r\n--bd--`});
+    body:`--bd\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:'lector.json',parents:['appDataFolder']})}\r\n--bd\r\nContent-Type: application/json\r\n\r\n${body}\r\n--bd--`},1,false);
     pfid=(await r.json()).id;SV('pfid',pfid)}}
-function persist(){SV('db',db);clearTimeout(timer);timer=setTimeout(()=>{if(token)push().catch(()=>{})},4000)}
+function persist(){SV('db',db);clearTimeout(timer);timer=setTimeout(()=>{if(token)push().catch(()=>{})},1000)}
 const setMeta=(id,p)=>{db.sagas[id]={...sm(id),...p,t:Date.now()};persist()};
 
 /* ---------- biblioteca ---------- */
@@ -401,6 +413,10 @@ addEventListener('pagehide',saveNow);
 if(history.state&&history.state.r)history.replaceState(null,'');
 
 look();render();
+/* Recupera automáticamente el progreso compartido al abrir la app.
+   Si ya hubo una autorización, Google renovará el token de forma silenciosa
+   sin volver a mostrar el diálogo de inicio de sesión. */
+if(cfg.clientId&&cfg.roots.length&&localStorage.getItem('hint'))sync(false);
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
 </script>
 </body>
