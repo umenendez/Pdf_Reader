@@ -218,7 +218,7 @@ const typeKey=s=>({Manga:'manga',Manhwa:'manhwa',Novela:'novela',Otro:'otro'})[t
 const src=s=>sm(s.id).cover||sm(s.id).malCover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
 const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
 const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
-async function malCover(s){if(src(s)||sm(s.id).malTried)return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)return;const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u});render()}}catch{}}
+async function malCover(s,force=false){if(!force&&(src(s)||sm(s.id).malTried))return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)throw new Error('MAL no disponible');const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u,malTried:false});render();return true}status('No se encontró una portada en MAL');return false}catch(e){status('No se pudo buscar la portada en MAL');return false}}
 function render(){
   const ok=(cfg.clientId&&cfg.roots.length)||localLib.length;$('#filters').hidden=!allLib().length;
   if(!ok||!allLib().length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Biblioteca vacía'}</h2>${ok?'Pulsa ⟳ para sincronizar Drive o ▣ para añadir obras del dispositivo.':'Añade una carpeta con PDFs desde el botón ▣ o configura Google Drive.'}<br><button class="btn" id="go">${cfg.clientId&&cfg.roots.length?'Sincronizar':'Añadir desde dispositivo'}</button></div>`;return}
@@ -259,7 +259,7 @@ $('#save').onclick=()=>{const old=JSON.stringify([cfg.clientId,cfg.roots]);cfg.c
 function openSheet(id){cur=id;const s=lib.find(x=>x.id==id);if(!s)return;const m=sm(id);
   $('#sheet').innerHTML=`<div class="sh"><button class="x" data-a="close" aria-label="Cerrar">×</button><div class="top">${cover(s)}<div><h2>${esc(s.name)}</h2>
   <div class="rw">${TYPES.map(t=>`<button class="chip ${typeOf(s)==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
-  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
+  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button><button class="chip" data-a="mal">Buscar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
   <ul>${s.vols.map(v=>{const x=vs(v.id);return `<li data-v="${v.id}"><span>${esc(v.name)}</span><small>${x.done?'Leído':x.p>1?`pág. ${x.p}/${x.n}`:''}</small><span><button data-a="done" data-v="${v.id}" class="${x.done?'on':''}">✓</button> <button data-a="dl" data-v="${v.id}" class="${off.has(v.id)?'on':''}">${off.has(v.id)?'Sin conexión ✓':'Descargar'}</button></span><div class="pg"><i style="width:${x.done?100:x.n?Math.round((x.p-1)/x.n*100):0}%"></i></div></li>`}).join('')}</ul></div>`;
   $('#sheet').hidden=false}
 $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
@@ -269,6 +269,7 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
     if(a=='uncover')setMeta(id,{cover:''});
     if(a=='cover')return $('#cvIn').click();
+    if(a=='mal'){b.textContent='Buscando…';await malCover(s,true);return openSheet(id)}
     if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
     if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v);DX.delete(v);SV('dx',[...DX])}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v);DX.add(v);SV('dx',[...DX])}}catch(er){status('Error: '+er.message)}}
     return openSheet(id)}
