@@ -85,7 +85,13 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
 #reader.sd #side{display:block}
 .th{margin-bottom:12px;text-align:center;font-size:11px;color:#8b97a6;cursor:pointer}.th .tc{background:rgba(128,128,128,.14);border:2px solid transparent;border-radius:3px;overflow:hidden}
 .th canvas{display:block;width:100%;height:100%}.th.on .tc{border-color:var(--ac)}.th.on{color:#fff;font-weight:700}
-@media(max-width:700px){#side{position:absolute;left:0;top:0;bottom:0;z-index:1}}
+@media(max-width:700px){
+  header{gap:6px;padding-left:10px;padding-right:10px}
+  header h1{font-size:18px;flex:0 0 auto}
+  #q{width:auto;flex:1;min-width:0}
+  .ib{width:34px;height:34px;flex:0 0 34px}
+  #side{position:absolute;left:0;top:0;bottom:0;z-index:1}
+}
 @media(prefers-reduced-motion:reduce){.bar{transition:none}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -216,9 +222,31 @@ const resSub=s=>{const r=resume(s),x=vs(r.id);return x.p>1&&!x.done?`<div class=
 const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
 const typeKey=s=>({Manga:'manga',Manhwa:'manhwa',Novela:'novela',Otro:'otro'})[typeOf(s)]||'otro';
 const src=s=>sm(s.id).cover||sm(s.id).malCover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
-const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
+const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
 const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
-async function malCover(s,force=false){if(!force&&(src(s)||sm(s.id).malTried))return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)throw new Error('MAL no disponible');const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u,malTried:false});render();return true}status('No se encontró una portada en MAL');return false}catch(e){status('No se pudo buscar la portada en MAL');return false}}
+async function malCover(s,force=false){
+  if(!force&&(src(s)||sm(s.id).malTried))return;
+  setMeta(s.id,{malTried:true});
+  try{
+    const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=5&sfw=true`);
+    if(!r.ok)throw new Error('MAL no disponible');
+    const j=await r.json();
+    const item=(j.data||[]).find(x=>x?.images?.jpg?.large_image_url||x?.images?.jpg?.image_url||x?.images?.webp?.large_image_url);
+    const u=item?.images?.jpg?.large_image_url||item?.images?.jpg?.image_url||item?.images?.webp?.large_image_url;
+    if(u){
+      setMeta(s.id,{malCover:u,malTried:false});
+      render();
+      return true
+    }
+    setMeta(s.id,{malTried:false});
+    status('No se encontró una portada en MAL');
+    return false
+  }catch(e){
+    setMeta(s.id,{malTried:false});
+    status('No se pudo buscar la portada en MAL');
+    return false
+  }
+}
 function render(){
   const ok=(cfg.clientId&&cfg.roots.length)||localLib.length;$('#filters').hidden=!allLib().length;
   if(!ok||!allLib().length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Biblioteca vacía'}</h2>${ok?'Pulsa ⟳ para sincronizar Drive o ▣ para añadir obras del dispositivo.':'Añade una carpeta con PDFs desde el botón ▣ o configura Google Drive.'}<br><button class="btn" id="go">${cfg.clientId&&cfg.roots.length?'Sincronizar':'Añadir desde dispositivo'}</button></div>`;return}
@@ -259,7 +287,7 @@ $('#save').onclick=()=>{const old=JSON.stringify([cfg.clientId,cfg.roots]);cfg.c
 function openSheet(id){cur=id;const s=lib.find(x=>x.id==id);if(!s)return;const m=sm(id);
   $('#sheet').innerHTML=`<div class="sh"><button class="x" data-a="close" aria-label="Cerrar">×</button><div class="top">${cover(s)}<div><h2>${esc(s.name)}</h2>
   <div class="rw">${TYPES.map(t=>`<button class="chip ${typeOf(s)==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
-  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button><button class="chip" data-a="mal">Buscar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
+  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button><button class="chip" data-a="mal">Buscar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}${String(s.id).startsWith('local:')?'<button class="chip" data-a="delete" style="color:#ff8b8b">Eliminar obra</button>':''}</div></div></div>
   <ul>${s.vols.map(v=>{const x=vs(v.id);return `<li data-v="${v.id}"><span>${esc(v.name)}</span><small>${x.done?'Leído':x.p>1?`pág. ${x.p}/${x.n}`:''}</small><span><button data-a="done" data-v="${v.id}" class="${x.done?'on':''}">✓</button> <button data-a="dl" data-v="${v.id}" class="${off.has(v.id)?'on':''}">${off.has(v.id)?'Sin conexión ✓':'Descargar'}</button></span><div class="pg"><i style="width:${x.done?100:x.n?Math.round((x.p-1)/x.n*100):0}%"></i></div></li>`}).join('')}</ul></div>`;
   $('#sheet').hidden=false}
 $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
@@ -268,6 +296,14 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='type')setMeta(id,{type:sm(id).type==b.dataset.t?'':b.dataset.t});
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
     if(a=='uncover')setMeta(id,{cover:''});
+    if(a=='delete'){
+      const sdel=lib.find(x=>x.id==id);
+      if(!sdel||!String(sdel.id).startsWith('local:'))return;
+      if(!confirm(`¿Eliminar la obra «${sdel.name}» y sus ${sdel.vols.length} PDF${sdel.vols.length==1?'':'s'} del dispositivo?`))return;
+      for(const v of sdel.vols){await tx('readwrite',o=>o.delete(v.id));off.delete(v.id);DX.delete(v.id)}
+      localLib=localLib.filter(x=>x.id!=id);SV('localLib',localLib);SV('dx',[...DX]);
+      delete db.sagas[id];persist();$('#sheet').hidden=true;cur=null;lib=allLib();render();status('Obra local eliminada');return;
+    }
     if(a=='cover')return $('#cvIn').click();
     if(a=='mal'){b.textContent='Buscando…';await malCover(s,true);return openSheet(id)}
     if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
@@ -291,7 +327,7 @@ const bars=on=>{$('#tb').classList.toggle('h',!on);$('#bb').classList.toggle('h'
 const keyOf=ps=>ps.join('-')+'|'+stg.clientWidth+'x'+stg.clientHeight+cfg.fit;
 function autoCache(vid,buf){tx('readwrite',o=>o.put(buf,vid)).then(()=>{off.add(vid);AC.push(vid);while(AC.length>3){const o=AC.shift();if(!DX.has(o)){tx('readwrite',x=>x.delete(o));off.delete(o)}}SV('ac',AC)}).catch(()=>{})}
 async function fetchPdf(vid){let buf=await tx('readonly',o=>o.get(vid));if(buf)return buf;
-  if(String(vid).startsWith('local:'))throw new Error('PDF local no encontrado');
+  if(String(vid).startsWith('local:'))throw new Error('El PDF local no está disponible en este dispositivo');
   const r=await g('files/'+vid+'?alt=media'),tot=+r.headers.get('content-length')||0;
   if(!r.body||!tot)buf=await r.arrayBuffer();
   else{const rd=r.body.getReader(),parts=[];let got=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;$('#rt').textContent='Descargando '+Math.round(got/tot*100)+'%'}buf=await new Blob(parts).arrayBuffer()}
