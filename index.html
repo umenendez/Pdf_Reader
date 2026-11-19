@@ -63,8 +63,12 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
 .acts{display:flex;gap:8px;align-items:center;margin-top:18px}.acts .btn{margin:0}
 #reader{position:fixed;inset:0;z-index:30;background:var(--sb,#0b0d10);display:flex}
 #reader[hidden],#sheet[hidden]{display:none}
-#stage{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;-webkit-overflow-scrolling:touch}
-#pageBox{display:flex;margin:auto 0}#pageBox canvas{display:block}
+#stage{flex:1;overflow:hidden;display:flex;justify-content:center;align-items:flex-start;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#pageBox{display:flex;margin:auto 0;transform-origin:0 0;will-change:transform}#pageBox canvas{display:block;flex:none;-webkit-user-drag:none}#pageBox.an{transition:transform .22s}
+#reader.sc #stage{overflow:auto;display:block;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#reader.sc #pageBox{flex-direction:column;margin:0 auto;width:max-content;transform:none!important}
+.sp{flex:none;background:rgba(128,128,128,.08);overflow:hidden}.sp canvas{display:block;width:100%;height:100%}
+.inf{position:absolute;right:6px;bottom:6px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;display:grid;place-items:center;font-style:normal;font-size:15px;z-index:1}
 .bar{position:fixed;left:0;right:0;z-index:2;color:#e9edf2;--ln:#2a3340;background:rgba(17,21,27,.94);display:flex;align-items:center;gap:10px;padding:8px 14px;transition:transform .2s}
 .bar.top{top:0;padding-top:calc(8px + env(safe-area-inset-top))}.bar.bot{bottom:0;flex-direction:column;align-items:stretch;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .bar.top.h{transform:translateY(-110%)}.bar.bot.h{transform:translateY(110%)}
@@ -91,7 +95,7 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
 <input type="file" id="cvIn" accept="image/*" hidden>
 <div id="reader" hidden>
   <div id="stage"><div id="pageBox"></div></div>
-  <div class="bar top" id="tb"><button data-r="close" aria-label="Cerrar">←</button><span id="rt"></span><button data-r="nextvol" id="nx" hidden>Siguiente vol.</button></div>
+  <div class="bar top" id="tb"><button data-r="close" aria-label="Cerrar">←</button><button data-r="list" aria-label="Volúmenes">☰</button><span id="rt"></span><button data-r="nextvol" id="nx" hidden>Siguiente vol.</button></div>
   <div class="bar bot" id="bb"><input type="range" id="sl" min="1" value="1" aria-label="Página">
     <div class="tools"><button data-r="mode"></button><button data-r="dir"></button><button data-r="fit"></button><button data-r="theme"></button><button data-r="fs" aria-label="Pantalla completa">⛶</button></div></div>
 </div>
@@ -104,7 +108,7 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
   <button class="chip" id="addRoot" type="button" style="margin-top:8px">+ Añadir ruta</button>
   <p>Cada ruta es una carpeta de Drive (enlace o ID). Sus subcarpetas son sagas y sus PDFs, volúmenes. La categoría de la ruta se aplica a todas sus obras y puedes cambiarla obra a obra.</p>
   <h4>Lectura</h4>
-  <label class="tg">Páginas<select id="s_mode"><option value="auto">Auto</option><option value="single">1 página</option><option value="double">2 páginas</option></select></label>
+  <label class="tg">Páginas<select id="s_mode"><option value="auto">Auto</option><option value="single">1 página</option><option value="double">2 páginas</option><option value="scroll">Scroll vertical</option></select></label>
   <label class="tg">Ajuste<select id="s_fit"><option value="page">Página entera</option><option value="width">Ancho</option></select></label>
   <label class="tg">Fondo del lector<select id="s_theme"><option value="0">Noche</option><option value="1">Negro</option><option value="2">Papel</option></select></label>
   <label class="tg">Manga de derecha a izquierda<input type="checkbox" id="s_rtl"></label>
@@ -127,7 +131,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
-const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent'};
+const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1};
 let cfg={...DEF,...(LS('cfg')||{})};if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
 let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
 const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
@@ -179,6 +183,10 @@ const hue=s=>[...s].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
 function stat(s){const d=s.vols.filter(v=>vs(v.id).done).length,st=s.vols.filter(v=>vs(v.id).p>1||vs(v.id).done).length;
   const part=s.vols.reduce((a,v)=>{const x=vs(v.id);return a+(x.done?1:x.n?(x.p-1)/x.n:0)},0)/s.vols.length;
   return{d,pct:Math.round(part*100),s:d==s.vols.length?'done':st?'reading':'new'}}
+const resume=s=>{const L=s.vols,i=L.findIndex(v=>v.id==sm(s.id).lv);
+  if(i>=0){const x=vs(L[i].id);return x.done&&L[i+1]?L[i+1]:L[i]}
+  return L.find(v=>vs(v.id).p>1&&!vs(v.id).done)||L.find(v=>!vs(v.id).done)||L[0]};
+const resSub=s=>{const r=resume(s),x=vs(r.id);return x.p>1&&!x.done?`<div class="sub">${s.vols.length>1?esc(r.name)+' · ':''}pág. ${x.p}</div>`:''};
 const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
 const src=s=>sm(s.id).cover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
 const cover=(s,x='')=>`<div class="cv" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`;
@@ -195,9 +203,9 @@ function render(){
   const cont=lib.flatMap(s=>s.vols.filter(v=>{const x=vs(v.id);return x.p>1&&!x.done}).map(v=>({s,v,t:vs(v.id).t}))).sort((a,b)=>b.t-a.t).slice(0,8);
   if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
   h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
-    return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:''))}<div class="nm">${esc(s.name)}</div><div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
+    return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:'')+`<i class="inf" data-info="${s.id}" role="button" aria-label="Volúmenes y opciones">☰</i>`)}<div class="nm">${esc(s.name)}</div>${resSub(s)}<div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
   $('#main').innerHTML=h}
-$('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const d=e.target.closest('[data-id]');if(d)openSheet(d.dataset.id);if(e.target.id=='go')ok2()};
+$('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const i=e.target.closest('[data-info]');if(i)return openSheet(i.dataset.info);const d=e.target.closest('[data-id]');if(d){const s=lib.find(x=>x.id==d.dataset.id);if(s)return openReader(resume(s).id)}if(e.target.id=='go')ok2()};
 const ok2=()=>cfg.clientId&&cfg.roots.length?sync():openCfg();
 $('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
 $('#filters').onchange=e=>{F.sort=e.target.value;render()};
@@ -232,57 +240,133 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='uncover')setMeta(id,{cover:''});
     if(a=='cover')return $('#cvIn').click();
     if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
-    if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v)}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v)}}catch(er){status('Error: '+er.message)}}
+    if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v);DX.delete(v);SV('dx',[...DX])}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v);DX.add(v);SV('dx',[...DX])}}catch(er){status('Error: '+er.message)}}
     return openSheet(id)}
   const li=e.target.closest('li[data-v]');if(li){$('#sheet').hidden=true;openReader(li.dataset.v)}};
 $('#cvIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=await createImageBitmap(f),k=300/b.width,c=document.createElement('canvas');c.width=300;c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
   setMeta(cur,{cover:c.toDataURL('image/jpeg',.75)});e.target.value='';openSheet(cur)};
 
 /* ---------- lector ---------- */
-let wl=null,rid=0;
+let wl=null,rid=0,bt,svT,tapT,shT,raf=0,after=null,lastTap=0,g0=null;
+const stg=$('#stage'),box=$('#pageBox'),Z={s:1,x:0,y:0},ptr=new Map(),AC=LS('ac')||[],DX=new Set(LS('dx')||[]);
 const rtl=()=>{const m=sm(R.s.id);return m.rtl??(cfg.rtlManga&&typeOf(R.s)=='Manga')};
-const isDbl=()=>cfg.mode=='double'||(cfg.mode=='auto'&&$('#stage').clientWidth>$('#stage').clientHeight*1.05);
+const mode=()=>sm(R.s.id).vm||(typeOf(R.s)=='Manhwa'?'scroll':cfg.mode);
+const isDbl=()=>mode()=='double'||(mode()=='auto'&&stg.clientWidth>stg.clientHeight*1.05);
 const spread=(p,n,d)=>{if(!d)return[p];if(cfg.cover&&p==1)return[1];const a=cfg.cover?(p%2?p-1:p):(p%2?p:p-1);return a+1<=n?[a,a+1]:[a]};
+const bars=on=>{$('#tb').classList.toggle('h',!on);$('#bb').classList.toggle('h',!on)},tgl=()=>bars($('#tb').classList.contains('h'));
+const keyOf=ps=>ps.join('-')+'|'+stg.clientWidth+'x'+stg.clientHeight+cfg.fit;
+function autoCache(vid,buf){tx('readwrite',o=>o.put(buf,vid)).then(()=>{off.add(vid);AC.push(vid);while(AC.length>3){const o=AC.shift();if(!DX.has(o)){tx('readwrite',x=>x.delete(o));off.delete(o)}}SV('ac',AC)}).catch(()=>{})}
+async function fetchPdf(vid){let buf=await tx('readonly',o=>o.get(vid));if(buf)return buf;
+  const r=await g('files/'+vid+'?alt=media'),tot=+r.headers.get('content-length')||0;
+  if(!r.body||!tot)buf=await r.arrayBuffer();
+  else{const rd=r.body.getReader(),parts=[];let got=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;$('#rt').textContent='Descargando '+Math.round(got/tot*100)+'%'}buf=await new Blob(parts).arrayBuffer()}
+  autoCache(vid,buf);return buf}
 async function openReader(vid){const s=lib.find(x=>x.vols.some(v=>v.id==vid)),v=s.vols.find(v=>v.id==vid);
-  R={s,v,pdf:null,p:1};$('#reader').hidden=false;$('#pageBox').replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';
-  try{let buf=await tx('readonly',o=>o.get(vid));if(!buf)buf=await(await g('files/'+vid+'?alt=media')).arrayBuffer();
-    R.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;
-    const x=vs(vid);R.p=x.done?1:Math.min(x.p||1,R.pdf.numPages);
-    const sl=$('#sl');sl.max=R.pdf.numPages;if(cfg.wake)try{wl=await navigator.wakeLock.request('screen')}catch{}
-    $('#tb').classList.remove('h');$('#bb').classList.remove('h');draw()}
-  catch(er){$('#rt').textContent='No se pudo abrir: '+er.message}}
-async function draw(){const my=++rid,pdf=R.pdf,n=pdf.numPages,st=$('#stage');
-  const pages=spread(R.p,n,isDbl()),pg=await Promise.all(pages.map(i=>pdf.getPage(i)));if(my!=rid)return;
-  const vp=pg.map(p=>p.getViewport({scale:1})),W=vp.reduce((a,v)=>a+v.width,0),H=Math.max(...vp.map(v=>v.height));
-  let k=st.clientWidth/W;if(cfg.fit=='page')k=Math.min(k,st.clientHeight/H);
-  const dpr=Math.min(devicePixelRatio||1,2),cs=pg.map(p=>{const c=document.createElement('canvas'),v=p.getViewport({scale:k*dpr});c.width=v.width;c.height=v.height;c.style.width=v.width/dpr+'px';c.style.height=v.height/dpr+'px';return{c,p,v}});
-  await Promise.all(cs.map(o=>o.p.render({canvasContext:o.c.getContext('2d'),viewport:o.v}).promise));if(my!=rid)return;
-  const els=cs.map(o=>o.c);if(rtl())els.reverse();$('#pageBox').replaceChildren(...els);st.scrollTop=0;
-  R.pages=pages;R.p=pages[0];const last=Math.max(...pages)>=n,x=vs(R.v.id);
-  const nd=!x.done&&cfg.auto&&last;db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||nd};if(nd&&cfg.casc)markDone(R.s,R.v.id,true);else persist();ui()}
-function ui(){const n=R.pdf.numPages,i=R.s.vols.findIndex(v=>v.id==R.v.id),last=Math.max(...R.pages)>=n;
+  if(R&&R.obs)R.obs.disconnect();rid++;const me=R={s,v,pdf:null,p:1,cache:new Map()};Z.s=1;
+  if(!history.state||!history.state.r)history.pushState({r:1},'');
+  setMeta(s.id,{lv:vid});
+  $('#reader').hidden=false;box.replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';bars(true);
+  try{const buf=await fetchPdf(vid);if(R!=me)return;
+    me.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;if(R!=me)return;
+    const x=vs(vid);me.p=x.done?1:Math.min(x.p||1,me.pdf.numPages);
+    $('#sl').max=me.pdf.numPages;if(cfg.wake)try{wl=await navigator.wakeLock.request('screen')}catch{}
+    await draw();clearTimeout(bt);bt=setTimeout(()=>bars(false),2500)}
+  catch(er){if(R==me)$('#rt').textContent='No se pudo abrir: '+er.message}}
+const draw=()=>mode()=='scroll'?drawScroll():drawPages();
+function saveProg(){const n=R.pdf.numPages,last=Math.max(...R.pages)>=n,x=vs(R.v.id),nd=!x.done&&cfg.auto&&last;
+  db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||nd};if(nd&&cfg.casc)markDone(R.s,R.v.id,true);else persist()}
+const saveNow=()=>{clearTimeout(svT);if(R&&R.pdf&&R.pages)saveProg()};
+
+/* --- modo página (con zoom, arrastre y precarga) --- */
+async function paint(p,w,h,k,q){const dpr=Math.min(devicePixelRatio||1,3),sc=Math.min(k*dpr*q,Math.sqrt(1.2e7/(w*h))),v=p.getViewport({scale:sc}),c=document.createElement('canvas');
+  c.width=v.width;c.height=v.height;c.style.width=w*k+'px';c.style.height=h*k+'px';await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;return c}
+async function build(pages,me){const pg=await Promise.all(pages.map(i=>me.pdf.getPage(i))),vp=pg.map(p=>p.getViewport({scale:1})),W=vp.reduce((a,v)=>a+v.width,0),H=Math.max(...vp.map(v=>v.height));
+  let k=stg.clientWidth/W;if(cfg.fit=='page')k=Math.min(k,stg.clientHeight/H);
+  return{q:1,cs:await Promise.all(pg.map(async(p,i)=>({c:await paint(p,vp[i].width,vp[i].height,k,1),p,k,w:vp[i].width,h:vp[i].height})))}}
+const keep=(me,key,b)=>{b.key=key;me.cache.set(key,b);if(me.cache.size>5)me.cache.delete(me.cache.keys().next().value)};
+async function drawPages(){const my=++rid,me=R,n=R.pdf.numPages;$('#reader').classList.remove('sc');if(me.obs){me.obs.disconnect();me.obs=null}
+  const pages=spread(R.p,n,isDbl()),key=keyOf(pages);if(R.b&&R.b.q>1)R.cache.delete(R.b.key);
+  let b=R.cache.get(key);if(!b){b=await build(pages,me);if(my!=rid)return;keep(me,key,b)}
+  R.b=b;const els=b.cs.map(o=>o.c);if(rtl())els.reverse();box.replaceChildren(...els);place();
+  R.pages=pages;R.p=pages[0];saveProg();ui();prefetch(pages,n,me)}
+function prefetch(pages,n,me){const run=async ps=>{const key=keyOf(ps);if(R!=me||me.cache.has(key))return;try{const b=await build(ps,me);if(R==me&&keyOf(ps)==key)keep(me,key,b)}catch{}};
+  const nx=Math.max(...pages)+1,pv=pages[0]-1;(async()=>{if(nx<=n)await run(spread(nx,n,isDbl()));if(pv>=1)await run(spread(pv,n,isDbl()))})()}
+const bxy=()=>[box.offsetLeft,box.offsetTop];
+function clampZ(){const[bx,by]=bxy(),W=stg.clientWidth,H=stg.clientHeight,w=box.offsetWidth*Z.s,h=box.offsetHeight*Z.s;
+  Z.x=w<=W+1?(W-w)/2-bx:Math.min(-bx,Math.max(W-w-bx,Z.x));Z.y=h<=H+1?(H-h)/2-by:Math.min(-by,Math.max(H-h-by,Z.y))}
+const setT=()=>{box.style.transform=`translate(${Z.x}px,${Z.y}px) scale(${Z.s})`};
+const applyZ=()=>{setT();clearTimeout(shT);shT=setTimeout(sharpen,220)};
+function place(){const k=R.keepZ;R.keepZ=0;Z.s=k||1;Z.x=k?(rtl()?-1e5:1e5):0;Z.y=1e5;clampZ();setT()}
+async function sharpen(){if(!R||!R.b||mode()=='scroll')return;const b=R.b,q=Math.min(Z.s,4),my=rid;if(q<=b.q*1.15)return;b.q=q;
+  for(const o of b.cs){const c=await paint(o.p,o.w,o.h,o.k,q);if(my!=rid||R.b!=b)return;o.c.replaceWith(c);o.c=c}}
+function zoomAt(x,y){const[bx,by]=bxy(),s=Z.s>1.05?1:2.5,cx=(x-bx-Z.x)/Z.s,cy=(y-by-Z.y)/Z.s;Z.s=s;Z.x=x-bx-s*cx;Z.y=y-by-s*cy;clampZ();box.classList.add('an');applyZ();setTimeout(()=>box.classList.remove('an'),260)}
+function tap(x,y){const f=x/innerWidth,t=Date.now();
+  if(f>=.3&&f<=.7){if(t-lastTap<300){clearTimeout(tapT);lastTap=0;return zoomAt(x,y)}lastTap=t;tapT=setTimeout(tgl,260);return}
+  side(f<.3?(cfg.tap?1:-1):(cfg.tap?-1:1),Z.s>1?Z.s:0)}
+stg.addEventListener('pointerdown',e=>{if(!R||!R.pdf||mode()=='scroll')return;stg.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:Date.now(),m:0});
+  if(ptr.size>1){ptr.forEach(p=>p.m=1);const[a,b]=[...ptr.values()],[bx,by]=bxy();g0={d:Math.hypot(a.x-b.x,a.y-b.y)||1,s:Z.s,cx:((a.x+b.x)/2-bx-Z.x)/Z.s,cy:((a.y+b.y)/2-by-Z.y)/Z.s}}});
+stg.addEventListener('pointermove',e=>{const p=ptr.get(e.pointerId);if(!p)return;const ox=p.x,oy=p.y,[bx,by]=bxy();p.x=e.clientX;p.y=e.clientY;
+  if(ptr.size>1&&g0){const[a,b]=[...ptr.values()];Z.s=Math.min(6,Math.max(1,g0.s*Math.hypot(a.x-b.x,a.y-b.y)/g0.d));Z.x=(a.x+b.x)/2-bx-Z.s*g0.cx;Z.y=(a.y+b.y)/2-by-Z.s*g0.cy}
+  else if(ptr.size==1){Z.x+=p.x-ox;Z.y+=p.y-oy}else return;clampZ();applyZ()});
+const endP=e=>{const p=ptr.get(e.pointerId);if(!p)return;ptr.delete(e.pointerId);if(ptr.size<2)g0=null;if(p.m||e.type=='pointercancel'||!R)return;
+  const dx=e.clientX-p.x0,dy=e.clientY-p.y0;
+  if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(box.offsetWidth*Z.s<=stg.clientWidth+1)side(dx<0?1:-1);return}
+  if(Math.hypot(dx,dy)<12&&Date.now()-p.t<500)tap(e.clientX,e.clientY)};
+stg.addEventListener('pointerup',endP);stg.addEventListener('pointercancel',endP);
+stg.addEventListener('wheel',e=>{if(!R||mode()=='scroll')return;e.preventDefault();const[bx,by]=bxy();
+  if(e.ctrlKey){const s=Math.min(6,Math.max(1,Z.s*Math.exp(-e.deltaY*.01))),cx=(e.clientX-bx-Z.x)/Z.s,cy=(e.clientY-by-Z.y)/Z.s;Z.s=s;Z.x=e.clientX-bx-s*cx;Z.y=e.clientY-by-s*cy}
+  else{Z.x-=e.deltaX;Z.y-=e.deltaY}clampZ();applyZ()},{passive:false});
+
+/* --- modo scroll vertical continuo (manhwa) --- */
+async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.obs.disconnect();me.obs=null}
+  $('#reader').classList.add('sc');box.style.transform='';
+  if(!me.sz){me.sz=await Promise.all(Array.from({length:n},(_,i)=>me.pdf.getPage(i+1).then(p=>{const v=p.getViewport({scale:1});return[v.width,v.height]})));if(my!=rid)return}
+  const Wc=Math.min(stg.clientWidth,1000)*cfg.zw;let y=0;me.tops=[];me.Wc=Wc;
+  const ds=me.sz.map(([w,h],i)=>{const d=document.createElement('div'),H=Wc*h/w;d.className='sp';d.dataset.i=i+1;d.style.cssText=`width:${Wc}px;height:${H}px`;me.tops.push(y);y+=H;return d});
+  box.replaceChildren(...ds);
+  me.obs=new IntersectionObserver(es=>es.forEach(en=>{const d=en.target;d.on=en.isIntersecting;if(d.on)paintS(d,my);else d.replaceChildren()}),{root:stg,rootMargin:'250% 0px'});ds.forEach(d=>me.obs.observe(d));
+  stg.scrollTop=me.tops[me.p-1]||0;me.pages=[me.p];ui()}
+async function paintS(d,my){if(d.firstChild||d.busy)return;d.busy=1;try{const me=R,i=+d.dataset.i,p=await me.pdf.getPage(i),[w,h]=me.sz[i-1],dpr=Math.min(devicePixelRatio||1,2.5),
+  v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(1.2e7/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+  await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)d.replaceChildren(c)}catch{}d.busy=0}
+stg.addEventListener('scroll',()=>{if(!R||!R.tops||mode()!='scroll'||raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!R||!R.tops)return;
+  const t=stg.scrollTop+stg.clientHeight*.3;let lo=0,hi=R.tops.length-1;while(lo<hi){const m=(lo+hi+1)>>1;R.tops[m]<=t?lo=m:hi=m-1}
+  if(R.p!=lo+1){R.p=lo+1;R.pages=[R.p];ui();clearTimeout(svT);svT=setTimeout(saveNow,600)}})});
+
+/* --- interfaz --- */
+function ui(){const n=R.pdf.numPages,i=R.s.vols.findIndex(v=>v.id==R.v.id),last=Math.max(...R.pages)>=n,sc=mode()=='scroll';
   $('#rt').textContent=`${R.s.name} · ${R.v.name} · ${R.pages.length>1?R.pages.join('-'):R.p}/${n}`;
-  $('#sl').value=R.p;$('#sl').style.direction=rtl()?'rtl':'ltr';$('#nx').hidden=!(last&&R.s.vols[i+1]);
-  const L={mode:{auto:'Auto',single:'1 página',double:'2 páginas'}[cfg.mode],dir:rtl()?'← Der. a izq.':'Izq. a der. →',fit:cfg.fit=='page'?'Página entera':'Ancho',theme:THEMES[cfg.theme][0]};
-  document.querySelectorAll('[data-r]').forEach(b=>{if(L[b.dataset.r])b.textContent=L[b.dataset.r]});$('#reader').style.setProperty('--sb',THEMES[cfg.theme][1])}
-const go=d=>{if(!R||!R.pdf)return;const n=R.pdf.numPages;R.p=d>0?Math.min(n,Math.max(...R.pages)+1):Math.max(1,R.pages[0]-1);if(d>0&&Math.max(...R.pages)>=n)return;draw()};
-const side=d=>go(rtl()?-d:d);
-function close(){R=null;rid++;$('#reader').hidden=true;document.body.style.overflow='';if(wl)wl.release().catch(()=>{});if(document.fullscreenElement)document.exitFullscreen();render()}
+  $('#sl').value=R.p;$('#sl').style.direction=!sc&&rtl()?'rtl':'ltr';$('#nx').hidden=!(last&&R.s.vols[i+1]);
+  const L={mode:{auto:'Auto',single:'1 página',double:'2 páginas',scroll:'Scroll vertical'}[mode()],dir:rtl()?'← Der. a izq.':'Izq. a der. →',fit:sc?`Ancho ${Math.round(cfg.zw*100)}%`:cfg.fit=='page'?'Página entera':'Ancho',theme:THEMES[cfg.theme][0]};
+  document.querySelectorAll('[data-r]').forEach(b=>{if(L[b.dataset.r])b.textContent=L[b.dataset.r]});$('[data-r="dir"]').hidden=sc;$('#reader').style.setProperty('--sb',THEMES[cfg.theme][1])}
+const go=(d,k=0)=>{if(!R||!R.pdf)return;if(mode()=='scroll'){stg.scrollBy({top:d*stg.clientHeight*.85,behavior:'smooth'});return}
+  const n=R.pdf.numPages;if(d>0?Math.max(...R.pages)>=n:R.pages[0]<=1)return;R.keepZ=k;R.p=d>0?Math.max(...R.pages)+1:R.pages[0]-1;draw()};
+const side=(d,k)=>go(mode()!='scroll'&&rtl()?-d:d,k);
+function shut(){if(!R)return;saveNow();if(R.obs)R.obs.disconnect();R=null;rid++;$('#reader').hidden=true;box.replaceChildren();document.body.style.overflow='';
+  if(wl)wl.release().catch(()=>{});if(document.fullscreenElement)document.exitFullscreen();render();if(after){const a=after;after=null;openSheet(a)}}
+const close=()=>history.state&&history.state.r?history.back():shut();
+addEventListener('popstate',()=>{if(R)shut()});
 $('#reader').onclick=e=>{const b=e.target.closest('[data-r]');
-  if(b){const a=b.dataset.r;if(a=='close')return close();if(a=='nextvol'){const i=R.s.vols.findIndex(v=>v.id==R.v.id);return openReader(R.s.vols[i+1].id)}
-    if(a=='mode')cfg.mode={auto:'single',single:'double',double:'auto'}[cfg.mode];if(a=='fit')cfg.fit=cfg.fit=='page'?'width':'page';if(a=='theme')cfg.theme=(cfg.theme+1)%THEMES.length;
-    if(a=='dir')setMeta(R.s.id,{rtl:!rtl()});if(a=='fs')return document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
+  if(b){const a=b.dataset.r;if(a=='close')return close();if(a=='list'){after=R.s.id;return close()}
+    if(a=='nextvol'){const i=R.s.vols.findIndex(v=>v.id==R.v.id);return openReader(R.s.vols[i+1].id)}
+    if(a=='fs')return document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.();
+    if(a=='mode'){const L=['auto','single','double','scroll'];setMeta(R.s.id,{vm:L[(L.indexOf(mode())+1)%4]})}
+    if(a=='fit'){if(mode()=='scroll'){const W=[.7,.85,1,1.25,1.5];cfg.zw=W[(W.indexOf(cfg.zw)+1)%5]}else cfg.fit=cfg.fit=='page'?'width':'page'}
+    if(a=='theme')cfg.theme=(cfg.theme+1)%THEMES.length;
+    if(a=='dir')setMeta(R.s.id,{rtl:!rtl()});
     SV('cfg',cfg);return R.pdf&&draw()}
-  if(e.target.closest('.bar'))return;if(Date.now()<swiped)return;
-  const f=e.clientX/innerWidth;if(f<.3)side(cfg.tap?1:-1);else if(f>.7)side(cfg.tap?-1:1);else{$('#tb').classList.toggle('h');$('#bb').classList.toggle('h')}};
-$('#sl').oninput=e=>{$('#rt').textContent=R.s.name+' · '+e.target.value+'/'+R.pdf.numPages};$('#sl').onchange=e=>{R.p=+e.target.value;draw()};
-let tx0=0,ty0=0,swiped=0;const stg=$('#stage');
-stg.addEventListener('touchstart',e=>{tx0=e.touches[0].clientX;ty0=e.touches[0].clientY},{passive:true});
-stg.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx0,dy=e.changedTouches[0].clientY-ty0;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){swiped=Date.now()+400;side(dx<0?1:-1)}});
+  if(e.target.closest('.bar')||!R||!R.pdf||mode()!='scroll')return;
+  const f=e.clientY/innerHeight;if(f<.25)go(-1);else if(f>.75)go(1);else tgl()};
+$('#sl').oninput=e=>{$('#rt').textContent=R.s.name+' · '+e.target.value+'/'+R.pdf.numPages};
+$('#sl').onchange=e=>{R.p=+e.target.value;if(mode()=='scroll')stg.scrollTop=R.tops[R.p-1];else draw()};
 addEventListener('keydown',e=>{if(!R||$('#reader').hidden)return;const k=e.key;
-  if(k=='ArrowRight')side(1);else if(k=='ArrowLeft')side(-1);else if(k==' '||k=='PageDown'){e.preventDefault();go(1)}else if(k=='PageUp')go(-1);else if(k=='Escape')close();else if(k=='f')document.documentElement.requestFullscreen?.()});
+  if(k=='ArrowRight')side(1);else if(k=='ArrowLeft')side(-1);else if(k==' '||k=='PageDown'||k=='ArrowDown'&&mode()=='scroll'){e.preventDefault();go(1)}else if(k=='PageUp'||k=='ArrowUp'&&mode()=='scroll')go(-1);
+  else if(k=='Escape')close();else if(k=='f')document.documentElement.requestFullscreen?.();
+  else if(mode()!='scroll'&&(k=='+'||k=='-'||k=='0')){const c=[innerWidth/2,innerHeight/2];if(k=='0'){Z.s=1}else Z.s=Math.min(6,Math.max(1,Z.s*(k=='+'?1.4:1/1.4)));clampZ();applyZ()}});
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>R&&R.pdf&&draw(),250)});
-document.addEventListener('visibilitychange',async()=>{if(R&&cfg.wake&&!document.hidden){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
+document.addEventListener('visibilitychange',async()=>{if(document.hidden)saveNow();else if(R&&cfg.wake){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
+addEventListener('pagehide',saveNow);
+if(history.state&&history.state.r)history.replaceState(null,'');
 
 look();render();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
