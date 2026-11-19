@@ -31,6 +31,9 @@ h3{font-size:13px;color:var(--mu);font-weight:600;margin:14px 0 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,130px),1fr));gap:18px 14px}
 .row2{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}.row2 .card{width:120px;flex:none}
 .card{text-align:left;display:block}
+.typeTag{display:inline-block;margin-top:7px;padding:2px 7px;border:1px solid currentColor;border-radius:999px;font-size:10px;line-height:1.15;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.typeTag.manga{color:#78a7ff}.typeTag.manhwa{color:#63c79b}.typeTag.novela{color:#e8b65c}.typeTag.otro{color:#a9b2c0}
+.cv{border:2px solid transparent}.cv.manga{border-color:#78a7ff}.cv.manhwa{border-color:#63c79b}.cv.novela{border-color:#e8b65c}.cv.otro{border-color:#a9b2c0}
 .cv{position:relative;aspect-ratio:2/3;border-radius:var(--r);overflow:hidden;background:hsl(var(--h) 30% 24%);box-shadow:0 2px 0 rgba(0,0,0,.35)}
 .cv span{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;color:#fff;font-weight:800;font-size:15px;line-height:1.1}
 .cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -93,6 +96,7 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
   <h1>Biblioteca</h1>
   <input id="q" type="search" placeholder="Buscar saga" aria-label="Buscar saga">
   <button class="ib" id="sy" title="Sincronizar con Drive" aria-label="Sincronizar con Drive">⟳</button>
+  <button class="ib" id="lo" title="Añadir obras del dispositivo" aria-label="Añadir obras del dispositivo">▣</button>
   <button class="ib" id="st" title="Ajustes" aria-label="Ajustes">⚙</button>
   <span id="ss"></span>
 </header>
@@ -100,6 +104,7 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
 <main id="main"></main>
 <div id="sheet" hidden></div>
 <input type="file" id="cvIn" accept="image/*" hidden>
+<input type="file" id="localIn" accept="application/pdf" multiple webkitdirectory directory hidden>
 <div id="reader" hidden>
   <aside id="side"></aside><div id="stage"><div id="pageBox"></div></div>
   <div class="bar top" id="tb"><button data-r="close" aria-label="Cerrar">←</button><button data-r="side" aria-label="Miniaturas" title="Miniaturas">▤</button><button data-r="list" aria-label="Volúmenes" title="Volúmenes">Vols</button><span id="rt"></span><span class="grp"><input id="pn" type="number" min="1" inputmode="numeric" aria-label="Número de página"><span class="pt" id="pt"></span></span><span class="grp"><button data-r="zout" aria-label="Alejar">−</button><span class="zl" id="zl"></span><button data-r="zin" aria-label="Acercar">+</button><button data-r="zfit" aria-label="Ajustar al ancho" title="Ajustar al ancho">↔</button></span><button data-r="nextvol" id="nx" hidden>Siguiente vol.</button></div>
@@ -139,7 +144,7 @@ const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
 const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1,side:false};
 let cfg={...DEF,...(LS('cfg')||{})};let authInteractive=true;if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
-let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
+let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],localLib=LS('localLib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
 const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
 function markDone(s,vid,on){const i=s.vols.findIndex(v=>v.id==vid),r=cfg.casc?(on?s.vols.slice(0,i+1):s.vols.slice(i)):[s.vols[i]];
   r.forEach(v=>{const x=vs(v.id);db.vols[v.id]={...x,p:on?(x.p||1):1,n:x.n||0,done:on,t:Date.now()}});persist()}
@@ -178,13 +183,16 @@ async function g(u,o={},retry=1,interactive=authInteractive){const t=await auth(
   if(r.status==401&&retry){token=null;return g(u,o,0,interactive)}if(!r.ok)throw new Error('Drive '+r.status);return r}
 async function list(q,extra=''){let out=[],pt='';do{const r=await(await g('files?pageSize=1000&fields=nextPageToken,files(id,name,mimeType,thumbnailLink)&q='+encodeURIComponent(q)+extra+(pt?'&pageToken='+pt:''))).json();out.push(...r.files);pt=r.nextPageToken}while(pt);return out}
 const nat=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}),clean=n=>n.replace(/\.pdf$/i,'');
+const localVolId=f=>'local:'+f;
+const localGroups=()=>localLib;
+const allLib=()=>{const m=new Map();[...localGroups(),...lib].forEach(s=>m.set(s.id,s));return [...m.values()].sort(nat)};
 async function sync(interactive=true){const prev=authInteractive;authInteractive=interactive;try{status('Sincronizando…');const res=[],seen=new Set(),add=x=>{if(!seen.has(x.id)){seen.add(x.id);res.push(x)}};
   for(const r of cfg.roots){const it=await list(`'${r.id}' in parents and trashed=false`);
     await Promise.all(it.filter(i=>i.mimeType=='application/vnd.google-apps.folder').map(async f=>{
       const v=(await list(`'${f.id}' in parents and trashed=false and mimeType='application/pdf'`)).sort(nat);
       if(v.length)add({id:f.id,name:f.name,rt:r.type,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
     it.filter(i=>i.mimeType=='application/pdf').forEach(p=>add({id:p.id,name:clean(p.name),rt:r.type,vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}))}
-  lib=res.sort(nat);SV('lib',lib);await pull();await push();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}finally{authInteractive=prev}}
+  lib=res.sort(nat);SV('lib',lib);await pull();await push();lib=allLib();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}finally{authInteractive=prev}}
 const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0))db.sagas[k]=a.sagas[k]};
 async function pull(){const f=(await(await g('files?spaces=appDataFolder&fields=files(id)&q='+encodeURIComponent("name='lector.json'"))).json()).files;
   if(f[0]){pfid=f[0].id;SV('pfid',pfid);merge(await(await g('files/'+pfid+'?alt=media')).json());SV('db',db)}}
@@ -206,29 +214,33 @@ const resume=s=>{const L=s.vols,i=L.findIndex(v=>v.id==sm(s.id).lv);
   return L.find(v=>vs(v.id).p>1&&!vs(v.id).done)||L.find(v=>!vs(v.id).done)||L[0]};
 const resSub=s=>{const r=resume(s),x=vs(r.id);return x.p>1&&!x.done?`<div class="sub">${s.vols.length>1?esc(r.name)+' · ':''}pág. ${x.p}</div>`:''};
 const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
-const src=s=>sm(s.id).cover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
-const cover=(s,x='')=>`<div class="cv" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`;
+const typeKey=s=>({Manga:'manga',Manhwa:'manhwa',Novela:'novela',Otro:'otro'})[typeOf(s)]||'otro';
+const src=s=>sm(s.id).cover||sm(s.id).malCover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
+const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
+const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
+async function malCover(s){if(src(s)||sm(s.id).malTried)return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)return;const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u});render()}}catch{}}
 function render(){
-  const ok=cfg.clientId&&cfg.roots.length;$('#filters').hidden=!lib.length;
-  if(!ok||!lib.length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Conecta tu Drive'}</h2>${ok?'Pulsa ⟳ para leer tu carpeta de Drive.':'Indica tu ID de cliente de Google y la carpeta donde tienes los PDFs. Cada subcarpeta será una saga.'}<br><button class="btn" id="go">${ok?'Sincronizar':'Configurar'}</button></div>`;return}
+  const ok=(cfg.clientId&&cfg.roots.length)||localLib.length;$('#filters').hidden=!allLib().length;
+  if(!ok||!allLib().length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Biblioteca vacía'}</h2>${ok?'Pulsa ⟳ para sincronizar Drive o ▣ para añadir obras del dispositivo.':'Añade una carpeta con PDFs desde el botón ▣ o configura Google Drive.'}<br><button class="btn" id="go">${cfg.clientId&&cfg.roots.length?'Sincronizar':'Añadir desde dispositivo'}</button></div>`;return}
+  lib=allLib();
   const ch=(k,o)=>o.map(([v,l])=>`<button class="chip ${F[k]===v?'on':''}" data-f="${k}" data-v="${v}">${l}</button>`).join('');
   $('#filters').innerHTML=ch('type',[['','Todos'],...TYPES.map(t=>[t,t])])+'<span class="sep"></span>'+ch('st',[['','Todo'],['new','Sin empezar'],['reading','Leyendo'],['done','Terminados']])+
     `<span class="sep"></span><button class="chip ${F.fav?'on':''}" data-f="fav">♥ Favoritos</button><select id="so" aria-label="Ordenar"><option value="recent">Recientes</option><option value="name">A–Z</option></select>`;
   $('#so').value=F.sort;
-  let l=lib.filter(s=>(!F.q||s.name.toLowerCase().includes(F.q))&&(!F.type||typeOf(s)==F.type)&&(!F.st||stat(s).s==F.st)&&(!F.fav||sm(s.id).fav));
+  let l=allLib().filter(s=>(!F.q||s.name.toLowerCase().includes(F.q))&&(!F.type||typeOf(s)==F.type)&&(!F.st||stat(s).s==F.st)&&(!F.fav||sm(s.id).fav));
   if(F.sort=='recent')l.sort((a,b)=>lastT(b)-lastT(a)||nat(a,b));
   let h='';
   const cont=lib.flatMap(s=>s.vols.filter(v=>{const x=vs(v.id);return x.p>1&&!x.done}).map(v=>({s,v,t:vs(v.id).t}))).sort((a,b)=>b.t-a.t).slice(0,8);
-  if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
+  if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}${tag(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
   h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
-    return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:'')+`<i class="inf" data-info="${s.id}" role="button" aria-label="Volúmenes y opciones">☰</i>`)}<div class="nm">${esc(s.name)}</div>${resSub(s)}<div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
-  $('#main').innerHTML=h}
+    return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:'')+`<i class="inf" data-info="${s.id}" role="button" aria-label="Volúmenes y opciones">☰</i>`)}${tag(s)}<div class="nm">${esc(s.name)}</div>${resSub(s)}<div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
+  $('#main').innerHTML=h; l.forEach(malCover)}
 $('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const i=e.target.closest('[data-info]');if(i)return openSheet(i.dataset.info);const d=e.target.closest('[data-id]');if(d){const s=lib.find(x=>x.id==d.dataset.id);if(s)return openReader(resume(s).id)}if(e.target.id=='go')ok2()};
-const ok2=()=>cfg.clientId&&cfg.roots.length?sync():openCfg();
+const ok2=()=>cfg.clientId&&cfg.roots.length?sync():$('#localIn').click();
 $('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
 $('#filters').onchange=e=>{F.sort=e.target.value;render()};
 $('#q').oninput=e=>{F.q=e.target.value.toLowerCase();render()};
-$('#sy').onclick=ok2;$('#st').onclick=openCfg;
+$('#sy').onclick=ok2;$('#lo').onclick=()=>$('#localIn').click();$('#st').onclick=openCfg;
 const rootId=r=>(r.match(/folders\/([\w-]+)/)||r.match(/[?&]id=([\w-]+)/)||[,r])[1];
 const rootRow=(r={id:'',type:''})=>`<div class="rr"><input placeholder="Enlace o ID de carpeta" value="${esc(r.id)}" aria-label="Carpeta de Drive"><select aria-label="Categoría de la ruta"><option value="">Sin categoría</option>${TYPES.map(t=>`<option ${r.type==t?'selected':''}>${t}</option>`).join('')}</select><button class="chip" type="button" data-rm aria-label="Quitar ruta">×</button></div>`;
 const SEL={s_mode:'mode',s_fit:'fit',s_theme:'theme',s_app:'app',s_ac:'ac',s_cw:'cw',s_sort:'sort'},CK={s_rtl:'rtlManga',s_cov:'cover',s_tap:'tap',s_wake:'wake',s_auto:'auto',s_casc:'casc',s_cont:'cont'};
@@ -261,6 +273,9 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v);DX.delete(v);SV('dx',[...DX])}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v);DX.add(v);SV('dx',[...DX])}}catch(er){status('Error: '+er.message)}}
     return openSheet(id)}
   const li=e.target.closest('li[data-v]');if(li){$('#sheet').hidden=true;openReader(li.dataset.v)}};
+$('#localIn').onchange=async e=>{const files=[...e.target.files].filter(f=>f.type=='application/pdf'||/\.pdf$/i.test(f.name));if(!files.length)return;status('Importando obras…');const groups=new Map();
+  for(const f of files){const rel=f.webkitRelativePath||f.name,parts=rel.split('/'),vol=clean(parts.pop()),group=parts.length?parts[parts.length-1]:vol,id=localVolId(rel+'|'+f.size+'|'+f.lastModified);const buf=await f.arrayBuffer();await tx('readwrite',o=>o.put(buf,id));let s=groups.get(group);if(!s){s={id:'local:saga:'+btoa(unescape(encodeURIComponent((parts.slice(0,-1).join('/')||group)))).replace(/[^a-zA-Z0-9]/g,''),name:group,rt:'',vols:[]};groups.set(group,s)}s.vols.push({id,name:vol,thumb:''})}
+  const existing=new Map(localLib.map(s=>[s.id,s]));groups.forEach(s=>{const old=existing.get(s.id);if(old){old.vols=[...old.vols.filter(v=>!s.vols.some(n=>n.id==v.id)),...s.vols];}else existing.set(s.id,s)});localLib=[...existing.values()];SV('localLib',localLib);e.target.value='';lib=allLib();render();status(`${files.length} PDF${files.length==1?'':'s'} importados`)};
 $('#cvIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=await createImageBitmap(f),k=300/b.width,c=document.createElement('canvas');c.width=300;c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
   setMeta(cur,{cover:c.toDataURL('image/jpeg',.75)});e.target.value='';openSheet(cur)};
 
@@ -275,6 +290,7 @@ const bars=on=>{$('#tb').classList.toggle('h',!on);$('#bb').classList.toggle('h'
 const keyOf=ps=>ps.join('-')+'|'+stg.clientWidth+'x'+stg.clientHeight+cfg.fit;
 function autoCache(vid,buf){tx('readwrite',o=>o.put(buf,vid)).then(()=>{off.add(vid);AC.push(vid);while(AC.length>3){const o=AC.shift();if(!DX.has(o)){tx('readwrite',x=>x.delete(o));off.delete(o)}}SV('ac',AC)}).catch(()=>{})}
 async function fetchPdf(vid){let buf=await tx('readonly',o=>o.get(vid));if(buf)return buf;
+  if(String(vid).startsWith('local:'))throw new Error('PDF local no encontrado');
   const r=await g('files/'+vid+'?alt=media'),tot=+r.headers.get('content-length')||0;
   if(!r.body||!tot)buf=await r.arrayBuffer();
   else{const rd=r.body.getReader(),parts=[];let got=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;$('#rt').textContent='Descargando '+Math.round(got/tot*100)+'%'}buf=await new Blob(parts).arrayBuffer()}
@@ -417,6 +433,7 @@ look();render();
    Si ya hubo una autorización, Google renovará el token de forma silenciosa
    sin volver a mostrar el diálogo de inicio de sesión. */
 if(cfg.clientId&&cfg.roots.length&&localStorage.getItem('hint'))sync(false);
+if(localLib.length){lib=allLib();render()}
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
 </script>
 </body>
