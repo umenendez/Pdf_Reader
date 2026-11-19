@@ -85,17 +85,10 @@ dialog h4{margin:20px 0 2px;font-size:14px;border-bottom:1px solid var(--ln);pad
 #reader.sd #side{display:block}
 .th{margin-bottom:12px;text-align:center;font-size:11px;color:#8b97a6;cursor:pointer}.th .tc{background:rgba(128,128,128,.14);border:2px solid transparent;border-radius:3px;overflow:hidden}
 .th canvas{display:block;width:100%;height:100%}.th.on .tc{border-color:var(--ac)}.th.on{color:#fff;font-weight:700}
-@media(max-width:700px){
-  header{gap:6px;padding-left:10px;padding-right:10px}
-  header h1{font-size:18px;flex:0 0 auto}
-  #q{width:auto;flex:1;min-width:0}
-  .ib{width:34px;height:34px;flex:0 0 34px}
-  #side{position:absolute;left:0;top:0;bottom:0;z-index:1}
-}
+@media(max-width:700px){#side{position:absolute;left:0;top:0;bottom:0;z-index:1}}
 @media(prefers-reduced-motion:reduce){.bar{transition:none}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async></script>
 </head>
 <body>
 <header>
@@ -149,7 +142,7 @@ const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&
 const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
 const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1,side:false};
-let cfg={...DEF,...(LS('cfg')||{})};let authInteractive=true;if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
+let cfg={...DEF,...(LS('cfg')||{})};cfg.clientId='123415018434-trh4mfqppilq6t9lqoe3cvipo1red7id.apps.googleusercontent.com';let authInteractive=true;if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
 let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],localLib=LS('localLib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
 const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
 function markDone(s,vid,on){const i=s.vols.findIndex(v=>v.id==vid),r=cfg.casc?(on?s.vols.slice(0,i+1):s.vols.slice(i)):[s.vols[i]];
@@ -165,24 +158,21 @@ const tx=async(m,f)=>{const d=await idb;return new Promise((ok,ko)=>{const q=f(d
 tx('readonly',o=>o.getAllKeys()).then(k=>{off=new Set(k)});
 
 /* ---------- Google Drive ---------- */
-function auth(interactive=authInteractive){return new Promise((ok,ko)=>{
+const AUTH_WORKER='https://frosty-mode-79db.unaxmenendez.workers.dev';
+function auth(interactive=authInteractive){return new Promise(async(ok,ko)=>{
   if(token&&Date.now()<tokExp-60000)return ok(token);
-  if(!cfg.clientId)return ko(new Error('Falta el ID de cliente'));
-  if(typeof google==='undefined')return ko(new Error('Sin conexión'));
-  const silent=!interactive&&!!localStorage.getItem('hint');
-  const request=mode=>google.accounts.oauth2.initTokenClient({
-    client_id:cfg.clientId,
-    scope:'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata',
-    callback:r=>{
-      if(r.error){
-        if(mode=='none'&&interactive)return request('consent');
-        return ko(new Error(r.error));
-      }
-      token=r.access_token;tokExp=Date.now()+r.expires_in*1000;localStorage.setItem('hint','1');ok(token)
+  try{
+    const r=await fetch(AUTH_WORKER+'/api/token',{method:'GET',credentials:'include'});
+    if(r.ok){
+      const data=await r.json();
+      if(!data.access_token)throw new Error('El Worker no devolvió un token de acceso');
+      token=data.access_token;
+      tokExp=Date.now()+(Number(data.expires_in)||3600)*1000;
+      return ok(token);
     }
-  }).requestAccessToken({prompt:mode});
-  if(!interactive&&!localStorage.getItem('hint'))return ko(new Error('No hay una sesión de Google disponible en segundo plano'));
-  request(silent?'none':'consent');
+    if(interactive){location.href=AUTH_WORKER+'/oauth/start';return;}
+    return ko(new Error('No hay una sesión de Google activa'));
+  }catch(e){ko(e)}
 })}
 async function g(u,o={},retry=1,interactive=authInteractive){const t=await auth(interactive);
   const r=await fetch(u.startsWith('http')?u:'https://www.googleapis.com/drive/v3/'+u,{...o,headers:{...o.headers,Authorization:'Bearer '+t}});
@@ -222,31 +212,9 @@ const resSub=s=>{const r=resume(s),x=vs(r.id);return x.p>1&&!x.done?`<div class=
 const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
 const typeKey=s=>({Manga:'manga',Manhwa:'manhwa',Novela:'novela',Otro:'otro'})[typeOf(s)]||'otro';
 const src=s=>sm(s.id).cover||sm(s.id).malCover||(s.vols[0].thumb&&s.vols[0].thumb.replace(/=s\d+$/,'=s400'));
-const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
+const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
 const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
-async function malCover(s,force=false){
-  if(!force&&(src(s)||sm(s.id).malTried))return;
-  setMeta(s.id,{malTried:true});
-  try{
-    const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=5&sfw=true`);
-    if(!r.ok)throw new Error('MAL no disponible');
-    const j=await r.json();
-    const item=(j.data||[]).find(x=>x?.images?.jpg?.large_image_url||x?.images?.jpg?.image_url||x?.images?.webp?.large_image_url);
-    const u=item?.images?.jpg?.large_image_url||item?.images?.jpg?.image_url||item?.images?.webp?.large_image_url;
-    if(u){
-      setMeta(s.id,{malCover:u,malTried:false});
-      render();
-      return true
-    }
-    setMeta(s.id,{malTried:false});
-    status('No se encontró una portada en MAL');
-    return false
-  }catch(e){
-    setMeta(s.id,{malTried:false});
-    status('No se pudo buscar la portada en MAL');
-    return false
-  }
-}
+async function malCover(s,force=false){if(!force&&(src(s)||sm(s.id).malTried))return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)throw new Error('MAL no disponible');const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u,malTried:false});render();return true}status('No se encontró una portada en MAL');return false}catch(e){status('No se pudo buscar la portada en MAL');return false}}
 function render(){
   const ok=(cfg.clientId&&cfg.roots.length)||localLib.length;$('#filters').hidden=!allLib().length;
   if(!ok||!allLib().length){$('#main').innerHTML=`<div class="empty"><h2>${ok?'Biblioteca vacía':'Biblioteca vacía'}</h2>${ok?'Pulsa ⟳ para sincronizar Drive o ▣ para añadir obras del dispositivo.':'Añade una carpeta con PDFs desde el botón ▣ o configura Google Drive.'}<br><button class="btn" id="go">${cfg.clientId&&cfg.roots.length?'Sincronizar':'Añadir desde dispositivo'}</button></div>`;return}
@@ -287,7 +255,7 @@ $('#save').onclick=()=>{const old=JSON.stringify([cfg.clientId,cfg.roots]);cfg.c
 function openSheet(id){cur=id;const s=lib.find(x=>x.id==id);if(!s)return;const m=sm(id);
   $('#sheet').innerHTML=`<div class="sh"><button class="x" data-a="close" aria-label="Cerrar">×</button><div class="top">${cover(s)}<div><h2>${esc(s.name)}</h2>
   <div class="rw">${TYPES.map(t=>`<button class="chip ${typeOf(s)==t?'on':''}" data-a="type" data-t="${t}">${t}</button>`).join('')}</div>
-  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button><button class="chip" data-a="mal">Buscar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}${String(s.id).startsWith('local:')?'<button class="chip" data-a="delete" style="color:#ff8b8b">Eliminar obra</button>':''}</div></div></div>
+  <div class="rw"><button class="chip ${m.fav?'on':''}" data-a="fav">♥ Favorito</button><button class="chip" data-a="cover">Cambiar portada</button><button class="chip" data-a="mal">Buscar portada</button>${m.cover?'<button class="chip" data-a="uncover">Portada original</button>':''}</div></div></div>
   <ul>${s.vols.map(v=>{const x=vs(v.id);return `<li data-v="${v.id}"><span>${esc(v.name)}</span><small>${x.done?'Leído':x.p>1?`pág. ${x.p}/${x.n}`:''}</small><span><button data-a="done" data-v="${v.id}" class="${x.done?'on':''}">✓</button> <button data-a="dl" data-v="${v.id}" class="${off.has(v.id)?'on':''}">${off.has(v.id)?'Sin conexión ✓':'Descargar'}</button></span><div class="pg"><i style="width:${x.done?100:x.n?Math.round((x.p-1)/x.n*100):0}%"></i></div></li>`}).join('')}</ul></div>`;
   $('#sheet').hidden=false}
 $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
@@ -296,14 +264,6 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur;
     if(a=='type')setMeta(id,{type:sm(id).type==b.dataset.t?'':b.dataset.t});
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
     if(a=='uncover')setMeta(id,{cover:''});
-    if(a=='delete'){
-      const sdel=lib.find(x=>x.id==id);
-      if(!sdel||!String(sdel.id).startsWith('local:'))return;
-      if(!confirm(`¿Eliminar la obra «${sdel.name}» y sus ${sdel.vols.length} PDF${sdel.vols.length==1?'':'s'} del dispositivo?`))return;
-      for(const v of sdel.vols){await tx('readwrite',o=>o.delete(v.id));off.delete(v.id);DX.delete(v.id)}
-      localLib=localLib.filter(x=>x.id!=id);SV('localLib',localLib);SV('dx',[...DX]);
-      delete db.sagas[id];persist();$('#sheet').hidden=true;cur=null;lib=allLib();render();status('Obra local eliminada');return;
-    }
     if(a=='cover')return $('#cvIn').click();
     if(a=='mal'){b.textContent='Buscando…';await malCover(s,true);return openSheet(id)}
     if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
@@ -469,7 +429,7 @@ look();render();
 /* Recupera automáticamente el progreso compartido al abrir la app.
    Si ya hubo una autorización, Google renovará el token de forma silenciosa
    sin volver a mostrar el diálogo de inicio de sesión. */
-if(cfg.clientId&&cfg.roots.length&&localStorage.getItem('hint'))sync(false);
+if(cfg.clientId&&cfg.roots.length)sync(false).catch(()=>{});
 if(localLib.length){lib=allLib();render()}
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
 </script>
