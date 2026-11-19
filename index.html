@@ -190,7 +190,7 @@ function stat(s){const d=s.vols.filter(v=>vs(v.id).done).length,st=s.vols.filter
   const part=s.vols.reduce((a,v)=>{const x=vs(v.id);return a+(x.done?1:x.n?(x.p-1)/x.n:0)},0)/s.vols.length;
   return{d,pct:Math.round(part*100),s:d==s.vols.length?'done':st?'reading':'new'}}
 const resume=s=>{const L=s.vols,i=L.findIndex(v=>v.id==sm(s.id).lv);
-  if(i>=0){const x=vs(L[i].id);return x.done&&L[i+1]?L[i+1]:L[i]}
+  if(i>=0)return L[i];
   return L.find(v=>vs(v.id).p>1&&!vs(v.id).done)||L.find(v=>!vs(v.id).done)||L[0]};
 const resSub=s=>{const r=resume(s),x=vs(r.id);return x.p>1&&!x.done?`<div class="sub">${s.vols.length>1?esc(r.name)+' · ':''}pág. ${x.p}</div>`:''};
 const lastT=s=>Math.max(0,...s.vols.map(v=>vs(v.id).t||0));
@@ -274,13 +274,14 @@ async function openReader(vid){const s=lib.find(x=>x.vols.some(v=>v.id==vid)),v=
   $('#reader').hidden=false;box.replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';bars(true);$('#reader').classList.toggle('sd',!!cfg.side);$('#side').replaceChildren();
   try{const buf=await fetchPdf(vid);if(R!=me)return;
     me.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;if(R!=me)return;
-    const x=vs(vid);me.p=x.done?1:Math.min(x.p||1,me.pdf.numPages);
+    const x=vs(vid);me.p=Math.min(x.p||1,me.pdf.numPages);me.o=x.o??null;
     $('#pn').max=me.pdf.numPages;if(cfg.wake)try{wl=await navigator.wakeLock.request('screen')}catch{}
     await draw();buildSide()}
   catch(er){if(R==me)$('#rt').textContent='No se pudo abrir: '+er.message}}
 const draw=()=>mode()=='scroll'?drawScroll():drawPages();
 function saveProg(){const n=R.pdf.numPages,last=Math.max(...R.pages)>=n,x=vs(R.v.id),nd=!x.done&&cfg.auto&&last;
-  db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||nd};if(nd&&cfg.casc)markDone(R.s,R.v.id,true);else persist()}
+  const o=mode()=='scroll'&&R.tops&&R.tops[R.p-1]!=null&&R.sz?Math.round((stg.scrollTop-R.tops[R.p-1])/(R.Wc*R.sz[R.p-1][1]/R.sz[R.p-1][0])*1000)/1000:null;
+  db.vols[R.v.id]={p:R.p,n,t:Date.now(),done:!!x.done||nd,...(o!=null?{o}:{})};if(nd&&cfg.casc)markDone(R.s,R.v.id,true);else persist()}
 const saveNow=()=>{clearTimeout(svT);if(R&&R.pdf&&R.pages)saveProg()};
 
 /* --- modo página (con zoom, arrastre y precarga) --- */
@@ -336,7 +337,7 @@ const sizes=async me=>{if(!me.sz)me.sz=await Promise.all(Array.from({length:me.p
 async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.obs.disconnect();me.obs=null}
   $('#reader').classList.add('sc');box.style.transform='';
   await sizes(me);if(my!=rid)return;
-  let f=0;if(me.tops&&me.tops[me.p-1]!=null){const[w,h]=me.sz[me.p-1];f=Math.max(0,(stg.scrollTop-me.tops[me.p-1])/(me.Wc*h/w))}
+  let f=me.o??0;me.o=null;if(me.tops&&me.tops[me.p-1]!=null){const[w,h]=me.sz[me.p-1];f=Math.max(0,(stg.scrollTop-me.tops[me.p-1])/(me.Wc*h/w))}
   const Wc=stg.clientWidth*cfg.zw,GAP=10;let y=0;me.tops=[];me.Wc=Wc;
   const ds=me.sz.map(([w,h],i)=>{const d=document.createElement('div'),H=Wc*h/w;d.className='sp';d.dataset.i=i+1;d.style.cssText=`width:${Wc}px;height:${H}px`;me.tops.push(y);y+=H+GAP;return d});
   box.replaceChildren(...ds);
@@ -350,7 +351,7 @@ async function paintS(d,my){if(d.firstChild||d.busy)return;d.busy=1;try{const me
   await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)d.replaceChildren(c)}catch{}d.busy=0}
 stg.addEventListener('scroll',()=>{if(!R||!R.tops||mode()!='scroll'||raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!R||!R.tops)return;
   const t=stg.scrollTop+stg.clientHeight*.25;let lo=0,hi=R.tops.length-1;while(lo<hi){const m=(lo+hi+1)>>1;R.tops[m]<=t?lo=m:hi=m-1}
-  if(R.p!=lo+1){R.p=lo+1;R.pages=[R.p];ui();clearTimeout(svT);svT=setTimeout(saveNow,600)}})});
+  if(R.p!=lo+1){R.p=lo+1;R.pages=[R.p];ui()}clearTimeout(svT);svT=setTimeout(saveNow,500)})});
 
 /* --- panel lateral de miniaturas --- */
 async function buildSide(){const me=R;if(!me||!me.pdf||!cfg.side)return;const sd=$('#side');if(me.th)return;await sizes(me);if(R!=me)return;
