@@ -1,1 +1,57 @@
-{"name":"Biblioteca Drive","short_name":"Biblioteca","id":"./","start_url":"./","scope":"./","display":"standalone","orientation":"any","background_color":"#11151b","theme_color":"#11151b","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
+{
+ "name": "Biblioteca Drive",
+ "short_name": "Biblioteca",
+ "id": "./",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#11151b",
+ "theme_color": "#11151b",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ],
+ "description": "Lector de PDFs (novelas, mangas y manhwas) conectado a Google Drive, con progreso sincronizado y lectura sin conexión.",
+ "lang": "es",
+ "categories": [
+  "books",
+  "entertainment"
+ ],
+ "shortcuts": [
+  {
+   "name": "Continuar leyendo",
+   "short_name": "Continuar",
+   "url": "./?continue=1",
+   "icons": [
+    {
+     "src": "icon-192.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  }
+ ]
+}

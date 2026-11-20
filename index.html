@@ -96,7 +96,7 @@ dialog h4{margin:22px 0 2px;font-size:14px;font-weight:700;border-bottom:1px sol
 @media(max-width:700px){#side{position:absolute;left:0;top:0;bottom:0;z-index:1}}
 @media(prefers-reduced-motion:reduce){.bar{transition:none}}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <header>
@@ -133,6 +133,7 @@ dialog h4{margin:22px 0 2px;font-size:14px;font-weight:700;border-bottom:1px sol
   <label class="tg">Portada sola en doble página<input type="checkbox" id="s_cov"></label>
   <label class="tg">Invertir toques laterales<input type="checkbox" id="s_tap"></label>
   <label class="tg">Mantener pantalla encendida<input type="checkbox" id="s_wake"></label>
+  <label class="tg">Abrir desde Drive sin descargar todo (experimental)<input type="checkbox" id="s_stream"></label>
   <label class="tg">Marcar leído al llegar a la última página<input type="checkbox" id="s_auto"></label>
   <label class="tg">Al marcar un volumen, marcar también los anteriores<input type="checkbox" id="s_casc"></label>
   <h4>Apariencia</h4>
@@ -141,15 +142,17 @@ dialog h4{margin:22px 0 2px;font-size:14px;font-weight:700;border-bottom:1px sol
   <label class="tg">Tamaño de portadas<select id="s_cw"><option value="100">Pequeñas</option><option value="130">Medianas</option><option value="170">Grandes</option></select></label>
   <label class="tg">Orden por defecto<select id="s_sort"><option value="recent">Recientes</option><option value="name">A–Z</option></select></label>
   <label class="tg">Mostrar «Continuar leyendo»<input type="checkbox" id="s_cont"></label>
+  <p id="stinfo" style="opacity:.7;font-size:.85em"></p>
+  <button class="chip" id="inst" type="button" style="display:none;margin-bottom:8px">Instalar app</button>
   <div class="acts"><button class="btn" id="save" type="button">Guardar</button><button class="chip" id="cx" type="button">Cancelar</button></div>
 </dialog>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}},SV=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){try{status('Almacenamiento lleno: libera espacio')}catch{}return false}};
 const TYPES=['Manga','Manhwa','Novela','Otro'],THEMES=[['Noche','#0b0d10'],['Negro','#000'],['Papel','#d9d3c3']];
-const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1,side:false};
+const DEF={clientId:'',roots:[],theme:0,mode:'auto',fit:'page',rtlManga:true,cover:true,tap:false,wake:true,auto:true,casc:true,app:'dark',ac:'#7aa2ff',cw:130,cont:true,sort:'recent',zw:1,side:false,stream:false};
 let cfg={...DEF,...(LS('cfg')||{})};cfg.clientId='123415018434-trh4mfqppilq6t9lqoe3cvipo1red7id.apps.googleusercontent.com';let authInteractive=true;if(cfg.root&&!cfg.roots.length)cfg.roots=[{id:cfg.root,type:''}];delete cfg.root;
 let db=LS('db')||{sagas:{},vols:{}},lib=LS('lib')||[],localLib=LS('localLib')||[],token=null,tokExp=0,pfid=LS('pfid'),off=new Set(),F={q:'',type:'',st:'',fav:false,sort:cfg.sort},R=null,cur=null,timer;
 const sm=id=>db.sagas[id]||{},vs=id=>db.vols[id]||{},typeOf=s=>sm(s.id).type||s.rt||'';
@@ -197,15 +200,17 @@ async function sync(interactive=true){const prev=authInteractive;authInteractive
       if(v.length)add({id:f.id,name:f.name,rt:r.type,vols:v.map(x=>({id:x.id,name:clean(x.name),thumb:x.thumbnailLink}))})}));
     it.filter(i=>i.mimeType=='application/pdf').forEach(p=>add({id:p.id,name:clean(p.name),rt:r.type,vols:[{id:p.id,name:clean(p.name),thumb:p.thumbnailLink}]}))}
   lib=res.sort(nat);SV('lib',lib);await pull();await push();lib=allLib();render();status('Sincronizado')}catch(e){status('Error: '+e.message)}finally{authInteractive=prev}}
-const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0))db.sagas[k]=a.sagas[k]};
+const merge=a=>{for(const k in a.vols)if(!db.vols[k]||a.vols[k].t>db.vols[k].t)db.vols[k]=a.vols[k];for(const k in a.sagas)if(!db.sagas[k]||(a.sagas[k].t||0)>(db.sagas[k].t||0)){const c=db.sagas[k]&&db.sagas[k].cover;db.sagas[k]={...a.sagas[k]};if(c&&String(c).startsWith('data:')&&a.sagas[k].cover==null)db.sagas[k].cover=c}};
 async function pull(){const f=(await(await g('files?spaces=appDataFolder&fields=files(id)&q='+encodeURIComponent("name='lector.json'"))).json()).files;
   if(f[0]){pfid=f[0].id;SV('pfid',pfid);merge(await(await g('files/'+pfid+'?alt=media')).json());SV('db',db)}}
-async function push(){const body=JSON.stringify(db);
+async function push(){const body=JSON.stringify(db,(k,v)=>k=='cover'&&typeof v=='string'&&v.startsWith('data:')?undefined:v);
   if(pfid)await g(`https://www.googleapis.com/upload/drive/v3/files/${pfid}?uploadType=media`,{method:'PATCH',headers:{'Content-Type':'application/json'},body},1,false);
   else{const r=await g('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary=bd'},
     body:`--bd\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:'lector.json',parents:['appDataFolder']})}\r\n--bd\r\nContent-Type: application/json\r\n\r\n${body}\r\n--bd--`},1,false);
     pfid=(await r.json()).id;SV('pfid',pfid)}}
-function persist(){SV('db',db);clearTimeout(timer);timer=setTimeout(()=>{if(token)push().catch(()=>{})},1000)}
+let pend=false;const doPush=()=>push().then(()=>{if(pend){pend=false;status('Sincronizado')}}).catch(()=>{pend=true;status('Sincronización pendiente')});
+function persist(){SV('db',db);clearTimeout(timer);timer=setTimeout(()=>{timer=0;if(token)doPush()},6000)}
+const flushPush=()=>{if(timer){clearTimeout(timer);timer=0;if(token)doPush()}};
 const setMeta=(id,p)=>{db.sagas[id]={...sm(id),...p,t:Date.now()};persist()};
 
 /* ---------- biblioteca ---------- */
@@ -223,35 +228,13 @@ const big=t=>t&&t.replace(/=s\d+$/,'=s400');
 const src=s=>{const m=sm(s.id),c=s.vols.find(v=>v.id==m.cv);return m.cover||(c&&big(c.thumb))||m.malCover||big(s.vols[0].thumb)};
 const cover=(s,x='')=>{const tk=typeKey(s);return `<div class="cv ${tk}" style="--h:${hue(s.name)}"><span>${esc(s.name)}</span>${src(s)?`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(src(s))}" alt="" onerror="this.remove()">`:''}${x}</div>`};
 const tag=(s)=>`<span class="typeTag ${typeKey(s)}">${esc(typeOf(s)||'Otro')}</span>`;
-/* Portada online: AniList (GraphQL, fiable y con CORS) y, si falla, Jikan/MAL. Jikan da 504 a menudo. */
-const cleanName=n=>n.replace(/[\[(].*?[\])]/g,' ').replace(/[_.]+/g,' ').replace(/\b(vol(umen)?|tomo|cap(itulo)?|ch(apter)?)\s*\.?\s*\d+.*$/i,' ').replace(/\s+/g,' ').trim();
-async function findCover(name){const q=cleanName(name)||name,tm=ms=>{const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal};
-  try{const r=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},signal:tm(10000),
-    body:JSON.stringify({query:'query($s:String){Page(perPage:1){media(search:$s,type:MANGA,sort:SEARCH_MATCH){coverImage{extraLarge large}}}}',variables:{s:q}})});
-    if(r.ok){const j=await r.json(),c=j?.data?.Page?.media?.[0]?.coverImage;if(c&&(c.extraLarge||c.large))return c.extraLarge||c.large;return null}}catch{}
-  try{const r=await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=1&sfw=true`,{signal:tm(10000)});
-    if(r.ok){const j=await r.json(),im=j?.data?.[0]?.images?.jpg;return im?.large_image_url||im?.image_url||null}}catch{}
-  throw new Error('sin conexión con AniList ni MAL')}
-const malBusy=new Set();let malChain=Promise.resolve();
-const putMeta=(id,p)=>{db.sagas[id]={...sm(id),...p};persist()};
-function malCover(s,force=false){
-  if(force!==true)force=false;
-  const m=sm(s.id);
-  if(!force){if(m.malOff||src(s)||malBusy.has(s.id))return;const w=m.malNF?30*864e5:36e5;if(m.malT&&Date.now()-m.malT<w)return}
-  if(malBusy.has(s.id))return;malBusy.add(s.id);
-  const job=malChain.then(async()=>{
-    try{const u=await findCover(s.name);
-      if(u){putMeta(s.id,{malCover:u,malOff:false,malT:0,malNF:false});render();return true}
-      putMeta(s.id,{malT:Date.now(),malNF:true});if(force)status('No se encontró una portada online');return false}
-    catch(e){console.warn('portada:',e);putMeta(s.id,{malT:Date.now(),malNF:false});if(force)status('No se pudo buscar la portada (sin conexión con el servicio)');return false}
-    finally{malBusy.delete(s.id);await new Promise(r=>setTimeout(r,force?0:400))}});
-  malChain=job.catch(()=>{});return job}
+async function malCover(s,force=false){if(!force&&(src(s)||sm(s.id).malTried))return;setMeta(s.id,{malTried:true});try{const q=encodeURIComponent(s.name),r=await fetch(`https://api.jikan.moe/v4/manga?q=${q}&limit=1&sfw=true`);if(!r.ok)throw new Error('MAL no disponible');const j=await r.json(),u=j?.data?.[0]?.images?.jpg?.large_image_url||j?.data?.[0]?.images?.jpg?.image_url;if(u){setMeta(s.id,{malCover:u,malTried:false});render();return true}status('No se encontró una portada en MAL');return false}catch(e){status('No se pudo buscar la portada en MAL');return false}}
 /* portada desde un tomo concreto: miniatura de Drive o 1ª página del PDF guardado */
 async function volCover(s,vid){const v=s.vols.find(x=>x.id==vid);if(!v)return;
   if(v.thumb)return setMeta(s.id,{cv:vid,cover:'',malCover:'',malTried:true});
   const buf=await tx('readonly',o=>o.get(vid));if(!buf)throw new Error('el PDF no está en este dispositivo');
-  const pdf=await pdfjsLib.getDocument({data:buf.slice(0)}).promise,pg=await pdf.getPage(1),k=400/pg.getViewport({scale:1}).width,vp=pg.getViewport({scale:k}),c=document.createElement('canvas');
-  c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;pdf.destroy();
+  const cu=URL.createObjectURL(toBlob(buf));const pdf=await pdfjsLib.getDocument({url:cu}).promise,pg=await pdf.getPage(1),k=400/pg.getViewport({scale:1}).width,vp=pg.getViewport({scale:k}),c=document.createElement('canvas');
+  c.width=vp.width;c.height=vp.height;await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;pdf.destroy();URL.revokeObjectURL(cu);
   setMeta(s.id,{cv:vid,cover:c.toDataURL('image/jpeg',.8),malCover:'',malTried:true})}
 async function delLocal(sid,vid){const s=localLib.find(x=>x.id==sid);if(!s)return;const del=vid?s.vols.filter(v=>v.id==vid):[...s.vols];
   for(const v of del){try{await tx('readwrite',o=>o.delete(v.id))}catch{}off.delete(v.id);DX.delete(v.id);const i=AC.indexOf(v.id);if(i>=0)AC.splice(i,1)}
@@ -273,7 +256,7 @@ function render(){
   if(cfg.cont&&cont.length&&!F.q&&!F.type&&!F.st&&!F.fav)h+=`<h3>Continuar leyendo</h3><div class="row2">${cont.map(({s,v})=>`<button class="card" data-cv="${v.id}">${cover(s)}${tag(s)}<div class="nm">${esc(s.name)}</div><div class="sub">${esc(v.name)} · pág. ${vs(v.id).p}</div></button>`).join('')}</div>`;
   h+=`<h3>${l.length} ${l.length==1?'obra':'obras'}</h3><div class="grid">${l.map(s=>{const m=sm(s.id);
     return `<button class="card" data-id="${s.id}">${cover(s,(m.fav?'<i class="fv">♥</i>':'')+(s.vols.length>1?`<b class="cnt">${s.vols.length}</b>`:'')+`<i class="inf" data-info="${s.id}" role="button" aria-label="Volúmenes y opciones">☰</i>`)}${tag(s)}<div class="nm">${esc(s.name)}</div>${resSub(s)}<div class="pg"><i style="width:${stat(s).pct}%"></i></div></button>`}).join('')}</div>`;
-  $('#main').innerHTML=h; l.forEach(x=>malCover(x))}
+  $('#main').innerHTML=h; l.forEach(malCover)}
 $('#main').onclick=e=>{const c=e.target.closest('[data-cv]');if(c)return openReader(c.dataset.cv);const i=e.target.closest('[data-info]');if(i)return openSheet(i.dataset.info);const d=e.target.closest('[data-id]');if(d){const s=lib.find(x=>x.id==d.dataset.id);if(s)return openReader(resume(s).id)}if(e.target.id=='go')ok2()};
 const ok2=()=>cfg.clientId&&cfg.roots.length?sync():$('#localIn').click();
 $('#filters').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;const k=b.dataset.f;if(k=='fav')F.fav=!F.fav;else F[k]=F[k]===b.dataset.v?'':b.dataset.v;render()};
@@ -282,7 +265,7 @@ $('#q').oninput=e=>{F.q=e.target.value.toLowerCase();render()};
 $('#sy').onclick=ok2;$('#lo').onclick=()=>$('#localIn').click();$('#st').onclick=openCfg;
 const rootId=r=>(r.match(/folders\/([\w-]+)/)||r.match(/[?&]id=([\w-]+)/)||[,r])[1];
 const rootRow=(r={id:'',type:''})=>`<div class="rr"><input placeholder="Enlace o ID de carpeta" value="${esc(r.id)}" aria-label="Carpeta de Drive"><select aria-label="Categoría de la ruta"><option value="">Sin categoría</option>${TYPES.map(t=>`<option ${r.type==t?'selected':''}>${t}</option>`).join('')}</select><button class="chip" type="button" data-rm aria-label="Quitar ruta">×</button></div>`;
-const SEL={s_mode:'mode',s_fit:'fit',s_theme:'theme',s_app:'app',s_ac:'ac',s_cw:'cw',s_sort:'sort'},CK={s_rtl:'rtlManga',s_cov:'cover',s_tap:'tap',s_wake:'wake',s_auto:'auto',s_casc:'casc',s_cont:'cont'};
+const SEL={s_mode:'mode',s_fit:'fit',s_theme:'theme',s_app:'app',s_ac:'ac',s_cw:'cw',s_sort:'sort'},CK={s_rtl:'rtlManga',s_cov:'cover',s_tap:'tap',s_wake:'wake',s_auto:'auto',s_casc:'casc',s_cont:'cont',s_stream:'stream'};
 function openCfg(){$('#cid').value=cfg.clientId;$('#roots').innerHTML=(cfg.roots.length?cfg.roots:[{id:'',type:''}]).map(rootRow).join('');
   for(const k in SEL)$('#'+k).value=cfg[SEL[k]];for(const k in CK)$('#'+k).checked=!!cfg[CK[k]];$('#cfgd').showModal()}
 $('#roots').onclick=e=>{const b=e.target.closest('[data-rm]');if(b)b.parentNode.remove()};
@@ -306,23 +289,26 @@ $('#sheet').onclick=async e=>{const b=e.target.closest('[data-a]'),id=cur,s=lib.
   if(b){const a=b.dataset.a,v=b.dataset.v;
     if(a=='type')setMeta(id,{type:sm(id).type==b.dataset.t?'':b.dataset.t});
     if(a=='fav')setMeta(id,{fav:!sm(id).fav});
-    if(a=='uncover')setMeta(id,{cover:'',cv:'',malCover:'',malOff:true});
+    if(a=='uncover')setMeta(id,{cover:'',cv:'',malCover:'',malTried:true});
     if(a=='vcover'){try{b.textContent='…';await volCover(s,v)}catch(er){status('Portada: '+er.message)}}
     if(a=='delvol'||a=='delsaga'){const all=a=='delsaga';if(!confirm(all?`¿Eliminar «${s.name}» y todos sus PDFs de este dispositivo?`:'¿Eliminar este volumen de este dispositivo?'))return;await delLocal(id,all?null:v);if(!lib.find(x=>x.id==id)){$('#sheet').hidden=true;return render()}render()}
     if(a=='cover')return $('#cvIn').click();
     if(a=='mal'){b.textContent='Buscando…';await malCover(s,true);return openSheet(id)}
     if(a=='done')markDone(lib.find(x=>x.id==id),v,!vs(v).done);
-    if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v);DX.delete(v);SV('dx',[...DX])}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).arrayBuffer();await tx('readwrite',o=>o.put(buf,v));off.add(v);DX.add(v);SV('dx',[...DX])}}catch(er){status('Error: '+er.message)}}
+    if(a=='dl'){try{if(off.has(v)){await tx('readwrite',o=>o.delete(v));off.delete(v);DX.delete(v);SV('dx',[...DX])}else{b.textContent='Descargando…';const buf=await(await g('files/'+v+'?alt=media')).blob();await tx('readwrite',o=>o.put(buf,v));off.add(v);DX.add(v);SV('dx',[...DX])}}catch(er){status('Error: '+er.message)}}
     return openSheet(id)}
   const li=e.target.closest('li[data-v]');if(li){$('#sheet').hidden=true;openReader(li.dataset.v)}};
 $('#localIn').onchange=async e=>{const files=[...e.target.files].filter(f=>f.type=='application/pdf'||/\.pdf$/i.test(f.name));if(!files.length)return;status('Importando obras…');const groups=new Map();
-  for(const f of files){const rel=f.webkitRelativePath||f.name,parts=rel.split('/'),vol=clean(parts.pop()),group=parts.length?parts[parts.length-1]:vol,id=localVolId(rel+'|'+f.size+'|'+f.lastModified);const buf=await f.arrayBuffer();await tx('readwrite',o=>o.put(buf,id));let s=groups.get(group);if(!s){s={id:'local:saga:'+btoa(unescape(encodeURIComponent((parts.slice(0,-1).join('/')||group)))).replace(/[^a-zA-Z0-9]/g,''),name:group,rt:'',vols:[]};groups.set(group,s)}s.vols.push({id,name:vol,thumb:''})}
+  for(const f of files){const rel=f.webkitRelativePath||f.name,parts=rel.split('/'),vol=clean(parts.pop()),group=parts.length?parts[parts.length-1]:vol,id=localVolId(rel+'|'+f.size+'|'+f.lastModified);await tx('readwrite',o=>o.put(f,id));let s=groups.get(group);if(!s){s={id:'local:saga:'+btoa(unescape(encodeURIComponent((parts.slice(0,-1).join('/')||group)))).replace(/[^a-zA-Z0-9]/g,''),name:group,rt:'',vols:[]};groups.set(group,s)}s.vols.push({id,name:vol,thumb:''})}
   const existing=new Map(localLib.map(s=>[s.id,s]));groups.forEach(s=>{const old=existing.get(s.id);if(old){old.vols=[...old.vols.filter(v=>!s.vols.some(n=>n.id==v.id)),...s.vols];}else existing.set(s.id,s)});localLib=[...existing.values()];SV('localLib',localLib);e.target.value='';lib=allLib();render();status(`${files.length} PDF${files.length==1?'':'s'} importados`);
   for(const g of groups.values()){const x=localLib.find(y=>y.id==g.id);if(x&&!sm(x.id).cover)await volCover(x,x.vols[0].id).catch(()=>{})}render()};
 $('#cvIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const b=await createImageBitmap(f),k=300/b.width,c=document.createElement('canvas');c.width=300;c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
   setMeta(cur,{cover:c.toDataURL('image/jpeg',.75)});e.target.value='';openSheet(cur)};
 
 /* ---------- lector ---------- */
+const LOWMEM=(navigator.deviceMemory||4)<=2,MAXPX=LOWMEM?3.5e6:7e6,CACHEN=LOWMEM?2:5;
+const toBlob=x=>x instanceof Blob?x:new Blob([x],{type:'application/pdf'});
+function cleanPdf(x){if(!x)return;try{x.pdf&&x.pdf.destroy()}catch{}if(x.url)URL.revokeObjectURL(x.url);if(x.cache)x.cache.clear()}
 let wl=null,rid=0,bt,svT,tapT,shT,raf=0,after=null,lastTap=0,g0=null;
 const stg=$('#stage'),box=$('#pageBox'),Z={s:1,x:0,y:0},ptr=new Map(),AC=LS('ac')||[],DX=new Set(LS('dx')||[]);
 const rtl=()=>{const m=sm(R.s.id);return m.rtl??(cfg.rtlManga&&typeOf(R.s)=='Manga')};
@@ -332,19 +318,20 @@ const spread=(p,n,d)=>{if(!d)return[p];if(cfg.cover&&p==1)return[1];const a=cfg.
 const bars=on=>{$('#tb').classList.toggle('h',!on);$('#bb').classList.toggle('h',!on)},tgl=()=>bars($('#tb').classList.contains('h'));
 const keyOf=ps=>ps.join('-')+'|'+stg.clientWidth+'x'+stg.clientHeight+cfg.fit;
 function autoCache(vid,buf){tx('readwrite',o=>o.put(buf,vid)).then(()=>{off.add(vid);AC.push(vid);while(AC.length>3){const o=AC.shift();if(!DX.has(o)){tx('readwrite',x=>x.delete(o));off.delete(o)}}SV('ac',AC)}).catch(()=>{})}
-async function fetchPdf(vid){let buf=await tx('readonly',o=>o.get(vid));if(buf)return buf;
+async function fetchPdf(vid){let buf=await tx('readonly',o=>o.get(vid));if(buf)return toBlob(buf);
   if(String(vid).startsWith('local:'))throw new Error('El PDF local no está disponible en este dispositivo');
   const r=await g('files/'+vid+'?alt=media'),tot=+r.headers.get('content-length')||0;
-  if(!r.body||!tot)buf=await r.arrayBuffer();
-  else{const rd=r.body.getReader(),parts=[];let got=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;$('#rt').textContent='Descargando '+Math.round(got/tot*100)+'%'}buf=await new Blob(parts).arrayBuffer()}
+  if(!r.body||!tot)buf=await r.blob();
+  else{const rd=r.body.getReader(),parts=[];let got=0;for(;;){const{done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;$('#rt').textContent='Descargando '+Math.round(got/tot*100)+'%'}buf=new Blob(parts,{type:'application/pdf'})}
   autoCache(vid,buf);return buf}
 async function openReader(vid){const s=lib.find(x=>x.vols.some(v=>v.id==vid)),v=s.vols.find(v=>v.id==vid);
-  if(R&&R.obs)R.obs.disconnect();rid++;const me=R={s,v,pdf:null,p:1,cache:new Map()};Z.s=1;
+  if(R&&R.obs)R.obs.disconnect();cleanPdf(R);rid++;const me=R={s,v,pdf:null,p:1,cache:new Map()};Z.s=1;
   if(!history.state||!history.state.r)history.pushState({r:1},'');
   setMeta(s.id,{lv:vid});
   $('#reader').hidden=false;box.replaceChildren();$('#rt').textContent='Cargando '+v.name+'…';document.body.style.overflow='hidden';bars(true);$('#reader').classList.toggle('sd',!!cfg.side);$('#side').replaceChildren();
-  try{const buf=await fetchPdf(vid);if(R!=me)return;
-    me.pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0))}).promise;if(R!=me)return;
+  try{
+    if(cfg.stream&&!off.has(vid)&&!isLoc(vid)){try{const t=await auth();me.pdf=await pdfjsLib.getDocument({url:'https://www.googleapis.com/drive/v3/files/'+vid+'?alt=media',httpHeaders:{Authorization:'Bearer '+t},rangeChunkSize:1<<20,disableAutoFetch:true}).promise}catch{me.pdf=null}if(R!=me)return}
+    if(!me.pdf){const blob=await fetchPdf(vid);if(R!=me)return;me.url=URL.createObjectURL(blob);me.pdf=await pdfjsLib.getDocument({url:me.url}).promise;if(R!=me)return}
     const x=vs(vid);me.p=Math.min(x.p||1,me.pdf.numPages);me.o=x.o??null;
     $('#pn').max=me.pdf.numPages;if(cfg.wake)try{wl=await navigator.wakeLock.request('screen')}catch{}
     await draw();buildSide()}
@@ -356,7 +343,7 @@ function saveProg(){const n=R.pdf.numPages,last=Math.max(...R.pages)>=n,x=vs(R.v
 const saveNow=()=>{clearTimeout(svT);if(R&&R.pdf&&R.pages)saveProg()};
 
 /* --- modo página (con zoom, arrastre y precarga) --- */
-async function paint(p,w,h,k,q){const dpr=Math.min(devicePixelRatio||1,3),sc=Math.min(k*dpr*q,Math.sqrt(7e6/(w*h))),v=p.getViewport({scale:sc}),c=document.createElement('canvas');
+async function paint(p,w,h,k,q){const dpr=Math.min(devicePixelRatio||1,3),sc=Math.min(k*dpr*q,Math.sqrt(MAXPX/(w*h))),v=p.getViewport({scale:sc}),c=document.createElement('canvas');
   c.width=v.width;c.height=v.height;c.style.width=w*k+'px';c.style.height=h*k+'px';await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;return c}
 async function build(pages,me){const pg=await Promise.all(pages.map(i=>me.pdf.getPage(i))),vp=pg.map(p=>p.getViewport({scale:1})),W=vp.reduce((a,v)=>a+v.width,0),H=Math.max(...vp.map(v=>v.height));
   let k=stg.clientWidth/W;if(cfg.fit=='page')k=Math.min(k,stg.clientHeight/H);
@@ -367,7 +354,7 @@ function swapC(o,c){if(!o.parentNode)return;c.style.position='absolute';c.style.
   settle(()=>{c.style.position=c.style.left=c.style.top='';o.remove()})}
 function swapS(d,c){const o=d.firstChild;if(!o){d.replaceChildren(c);return}c.style.position='absolute';c.style.left=c.style.top='0';d.appendChild(c);
   settle(()=>{if(c.parentNode!==d)return;c.style.position=c.style.left=c.style.top='';[...d.children].forEach(x=>{if(x!==c)x.remove()})})}
-const keep=(me,key,b)=>{b.key=key;me.cache.set(key,b);if(me.cache.size>5)me.cache.delete(me.cache.keys().next().value)};
+const keep=(me,key,b)=>{b.key=key;me.cache.set(key,b);if(me.cache.size>CACHEN)me.cache.delete(me.cache.keys().next().value)};
 async function drawPages(){const my=++rid,me=R,n=R.pdf.numPages;$('#reader').classList.remove('sc');if(me.obs){me.obs.disconnect();me.obs=null}
   const pages=spread(R.p,n,isDbl()),key=keyOf(pages);if(R.b&&R.b.q>1)R.cache.delete(R.b.key);
   let b=R.cache.get(key);if(!b){b=await build(pages,me);if(my!=rid)return;keep(me,key,b)}
@@ -397,27 +384,24 @@ const endP=e=>{const p=ptr.get(e.pointerId);if(!p)return;ptr.delete(e.pointerId)
   if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(box.offsetWidth*Z.s<=stg.clientWidth+1)side(dx<0?1:-1);return}
   if(Math.hypot(dx,dy)<12&&Date.now()-p.t<500)tap(cx(e),e.clientY)};
 stg.addEventListener('pointerup',endP);stg.addEventListener('pointercancel',endP);
-let zt;const zoomS=f=>{capAnchor(.5);cfg.zw=Math.min(3,Math.max(.5,Math.round(cfg.zw*f*100)/100));SV('cfg',cfg);$('#zl').textContent=Math.round(cfg.zw*100)+'%';clearTimeout(zt);zt=setTimeout(()=>R&&R.pdf&&draw(),150)};
+let zt;const zoomS=f=>{cfg.zw=Math.min(3,Math.max(.5,Math.round(cfg.zw*f*100)/100));SV('cfg',cfg);$('#zl').textContent=Math.round(cfg.zw*100)+'%';clearTimeout(zt);zt=setTimeout(()=>R&&R.pdf&&draw(),150)};
 const zoomBtn=f=>{if(!R||!R.pdf)return;if(mode()=='scroll')zoomS(f);else{const x=stg.clientWidth/2,y=stg.clientHeight/2,[bx,by]=bxy(),s=Math.min(6,Math.max(1,Z.s*f)),qx=(x-bx-Z.x)/Z.s,qy=(y-by-Z.y)/Z.s;Z.s=s;Z.x=x-bx-s*qx;Z.y=y-by-s*qy;clampZ();box.classList.add('an');applyZ();setTimeout(()=>box.classList.remove('an'),260)}};
 let pz=null;
 stg.addEventListener('touchstart',e=>{if(!R||mode()!='scroll'||e.touches.length!=2)return;const[a,b]=e.touches,l=stg.getBoundingClientRect().left;pz={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,mx:(a.clientX+b.clientX)/2-l,my:(a.clientY+b.clientY)/2,r:1,z:cfg.zw};
   box.style.transformOrigin=`${pz.mx+stg.scrollLeft-box.offsetLeft}px ${pz.my+stg.scrollTop-box.offsetTop}px`},{passive:true});
 stg.addEventListener('touchmove',e=>{if(!pz||e.touches.length!=2)return;if(e.cancelable)e.preventDefault();const[a,b]=e.touches;pz.r=Math.min(3/pz.z,Math.max(.5/pz.z,Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/pz.d));box.style.scale=pz.r},{passive:false});
 stg.addEventListener('touchend',e=>{if(!pz||e.touches.length>=2)return;const q=pz;pz=null;box.style.scale='';box.style.transformOrigin='';
-  if(Math.abs(q.r-1)<.03||!R)return;R.an=null;R.ps={cy:stg.scrollTop+q.my-box.offsetTop,cx:stg.scrollLeft+q.mx-box.offsetLeft,r:q.r,my:q.my,mx:q.mx};cfg.zw=Math.round(q.z*q.r*100)/100;SV('cfg',cfg);draw()});
+  if(Math.abs(q.r-1)<.03||!R)return;R.ps={cy:stg.scrollTop+q.my-box.offsetTop,cx:stg.scrollLeft+q.mx-box.offsetLeft,r:q.r,my:q.my,mx:q.mx};cfg.zw=Math.round(q.z*q.r*100)/100;SV('cfg',cfg);draw()});
 stg.addEventListener('wheel',e=>{if(R&&mode()=='scroll'&&e.ctrlKey){e.preventDefault();zoomS(e.deltaY<0?1.1:1/1.1)}if(!R||mode()=='scroll')return;e.preventDefault();const[bx,by]=bxy();
   if(e.ctrlKey){const s=Math.min(6,Math.max(1,Z.s*Math.exp(-e.deltaY*.01))),qx=(cx(e)-bx-Z.x)/Z.s,cy=(e.clientY-by-Z.y)/Z.s;Z.s=s;Z.x=cx(e)-bx-s*qx;Z.y=e.clientY-by-s*cy}
   else{Z.x-=e.deltaX;Z.y-=e.deltaY}clampZ();applyZ()},{passive:false});
 
 /* --- modo scroll vertical continuo (manhwa) --- */
 const sizes=async me=>{if(!me.sz)me.sz=await Promise.all(Array.from({length:me.pdf.numPages},(_,i)=>me.pdf.getPage(i+1).then(p=>{const v=p.getViewport({scale:1});return[v.width,v.height]})));return me.sz};
-/* ancla de lectura: página y fracción exactas bajo la línea c del visor (0=arriba, .5=centro), sin recortar a la página "actual" */
-const anchorAt=(me,c)=>{const t=me.tops,s=stg.scrollTop+c*stg.clientHeight;let lo=0,hi=t.length-1;while(lo<hi){const m=(lo+hi+1)>>1;t[m]<=s?lo=m:hi=m-1}const[w,h]=me.sz[lo];return[lo,(s-t[lo])/(me.Wc*h/w),c]};
-const capAnchor=c=>{if(R&&R.pdf&&R.tops&&R.sz&&mode()=='scroll'&&!R.an)R.an=anchorAt(R,c)};
 async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.obs.disconnect();me.obs=null}
   $('#reader').classList.add('sc');box.style.transform='';
   await sizes(me);if(my!=rid)return;
-  let i0=me.p-1,f=me.o??0,c0=0;me.o=null;{const a=me.an||(me.tops&&me.tops[me.p-1]!=null?anchorAt(me,0):null);me.an=null;if(a)[i0,f,c0]=a}
+  let f=me.o??0;me.o=null;if(me.tops&&me.tops[me.p-1]!=null){const[w,h]=me.sz[me.p-1];f=Math.max(0,(stg.scrollTop-me.tops[me.p-1])/(me.Wc*h/w))}
   const Wc=stg.clientWidth*cfg.zw,GAP=10;let y=0;me.tops=[];me.Wc=Wc;
   const ds=me.sz.map(([w,h],i)=>{const d=document.createElement('div'),H=Wc*h/w;d.className='sp';d.dataset.i=i+1;d.style.cssText=`width:${Wc}px;height:${H}px`;me.tops.push(y);y+=H+GAP;return d});
   /* al redibujar (zoom, giro…) las páginas ya pintadas se quedan estiradas como marcador hasta que llega la nueva versión, para que no se vea un hueco negro */
@@ -427,10 +411,10 @@ async function drawScroll(){const my=++rid,me=R,n=R.pdf.numPages;if(me.obs){me.o
   me.obs=new IntersectionObserver(es=>es.forEach(en=>{const d=en.target;d.on=en.isIntersecting;if(d.on)paintS(d,my);else d.replaceChildren()}),{root:stg,rootMargin:'250% 0px'});ds.forEach(d=>me.obs.observe(d));
   const ps=me.ps;me.ps=null;
   if(ps){stg.scrollTop=ps.cy*ps.r-(ps.my-box.offsetTop);stg.scrollLeft=ps.cx*ps.r+box.offsetLeft-ps.mx}
-  else{const[w,h]=me.sz[i0];stg.scrollTop=Math.max(0,(me.tops[i0]||0)+f*Wc*h/w-c0*stg.clientHeight)}
+  else{const[w,h]=me.sz[me.p-1];stg.scrollTop=(me.tops[me.p-1]||0)+f*Wc*h/w}
   me.pages=[me.p];ui()}
 async function paintS(d,my){if((d.firstChild&&!d.firstChild.ph)||d.busy)return;d.busy=1;try{const me=R,i=+d.dataset.i,p=await me.pdf.getPage(i),[w,h]=me.sz[i-1],dpr=Math.min(devicePixelRatio||1,2.5),
-  v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(7e6/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+  v=p.getViewport({scale:Math.min(me.Wc/w*dpr,Math.sqrt(MAXPX/(w*h)))}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;
   await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;if(d.on&&my==rid&&R==me)swapS(d,c)}catch{}d.busy=0}
 stg.addEventListener('scroll',()=>{if(!R||!R.tops||mode()!='scroll'||raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!R||!R.tops)return;
   const t=stg.scrollTop+stg.clientHeight*.25;let lo=0,hi=R.tops.length-1;while(lo<hi){const m=(lo+hi+1)>>1;R.tops[m]<=t?lo=m:hi=m-1}
@@ -456,7 +440,7 @@ function ui(){const n=R.pdf.numPages,i=R.s.vols.findIndex(v=>v.id==R.v.id),last=
 const go=(d,k=0)=>{if(!R||!R.pdf)return;if(mode()=='scroll'){stg.scrollBy({top:d*stg.clientHeight*.85,behavior:'smooth'});return}
   const n=R.pdf.numPages;if(d>0?Math.max(...R.pages)>=n:R.pages[0]<=1)return;R.keepZ=k;R.p=d>0?Math.max(...R.pages)+1:R.pages[0]-1;draw()};
 const side=(d,k)=>go(mode()!='scroll'&&rtl()?-d:d,k);
-function shut(){if(!R)return;saveNow();if(R.obs)R.obs.disconnect();if(R.io)R.io.disconnect();R=null;rid++;$('#reader').hidden=true;box.replaceChildren();document.body.style.overflow='';
+function shut(){if(!R)return;saveNow();if(R.obs)R.obs.disconnect();if(R.io)R.io.disconnect();cleanPdf(R);R=null;rid++;$('#reader').hidden=true;box.replaceChildren();document.body.style.overflow='';
   if(wl)wl.release().catch(()=>{});if(document.fullscreenElement)document.exitFullscreen();render();if(after){const a=after;after=null;openSheet(a)}}
 const close=()=>history.state&&history.state.r?history.back():shut();
 addEventListener('popstate',()=>{if(R)shut()});
@@ -478,9 +462,9 @@ addEventListener('keydown',e=>{if(!R||$('#reader').hidden||e.target.tagName=='IN
   if(k=='ArrowRight')side(1);else if(k=='ArrowLeft')side(-1);else if(k==' '||k=='PageDown'||k=='ArrowDown'&&mode()=='scroll'){e.preventDefault();go(1)}else if(k=='PageUp'||k=='ArrowUp'&&mode()=='scroll')go(-1);
   else if(k=='Escape')close();else if(k=='f')document.documentElement.requestFullscreen?.();
   else if(mode()!='scroll'&&(k=='+'||k=='-'||k=='0')){const c=[innerWidth/2,innerHeight/2];if(k=='0'){Z.s=1}else Z.s=Math.min(6,Math.max(1,Z.s*(k=='+'?1.4:1/1.4)));clampZ();applyZ()}});
-let rz;addEventListener('resize',()=>{capAnchor(0);clearTimeout(rz);rz=setTimeout(()=>R&&R.pdf&&draw(),250)});
-document.addEventListener('visibilitychange',async()=>{if(document.hidden)saveNow();else if(R&&cfg.wake){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
-addEventListener('pagehide',saveNow);
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>R&&R.pdf&&draw(),250)});
+document.addEventListener('visibilitychange',async()=>{if(document.hidden){saveNow();flushPush()}else if(R&&cfg.wake){try{wl=await navigator.wakeLock.request('screen')}catch{}}});
+addEventListener('pagehide',()=>{saveNow();flushPush()});
 if(history.state&&history.state.r)history.replaceState(null,'');
 
 look();render();
@@ -489,7 +473,14 @@ look();render();
    sin volver a mostrar el diálogo de inicio de sesión. */
 if(cfg.clientId&&cfg.roots.length)sync(false).catch(()=>{});
 if(localLib.length){lib=allLib();render()}
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+$('#st').addEventListener('click',async()=>{try{const e=await navigator.storage.estimate(),p=navigator.storage.persisted?await navigator.storage.persisted():false;$('#stinfo').textContent=`Almacenamiento: ${Math.round(e.usage/1048576)} MB usados de ${Math.round(e.quota/1048576)} MB · ${p?'persistente':'no persistente'}`}catch{}});
+let ip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('#inst').style.display=''});
+$('#inst').onclick=async()=>{if(!ip)return;ip.prompt();await ip.userChoice.catch(()=>{});ip=null;$('#inst').style.display='none'};
+addEventListener('appinstalled',()=>{$('#inst').style.display='none'});
+document.querySelectorAll('button:not([aria-label])').forEach(b=>{const t=b.title||b.textContent.trim();if(t)b.setAttribute('aria-label',t)});
+if(new URLSearchParams(location.search).has('continue')){lib=allLib();const s=[...lib].sort((a,b)=>lastT(b)-lastT(a))[0];if(s&&lastT(s)&&s.vols.length)openReader(resume(s).id);history.replaceState(history.state,'',location.pathname)}
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
 </script>
 </body>
 </html>
